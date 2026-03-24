@@ -28,7 +28,7 @@ USER 50000
 
 WORKDIR ${AIRFLOW_HOME}
 
-COPY ../../pyproject.toml ../../uv.lock ./
+COPY pyproject.toml uv.lock ./
 
 RUN uv pip install --upgrade pip && uv pip install -r pyproject.toml
 

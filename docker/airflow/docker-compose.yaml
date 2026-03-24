@@ -48,7 +48,9 @@ x-airflow-common: &airflow-common
   # In order to add custom dependencies or upgrade provider distributions you can use your extended image.
   # Comment the image line, place your Dockerfile in the directory where you placed the docker-compose.yaml
   # and uncomment the "build" line below, Then run `docker-compose build` to build the images.
-  build: .
+  build:
+    context: ../..
+    dockerfile: docker/airflow/Dockerfile
   image: extended_airflow:3.1.7-python3.12
   pull_policy: never
   environment: &airflow-common-env
@@ -68,6 +70,10 @@ x-airflow-common: &airflow-common
     AIRFLOW__SCHEDULER__ENABLE_HEALTH_CHECK: "true"
     # The following line can be used to set a custom config file, stored in the local config folder
     AIRFLOW_CONFIG: "/opt/airflow/config/airflow.cfg"
+    AIRFLOW__OPENLINEAGE__TRANSPORT: '{"type": "http", "url": "http://marquez-api:5000", "endpoint": "api/v1/lineage"}'
+    AIRFLOW__OPENLINEAGE__NAMESPACE: "airflow"
+  networks:
+    - data-platform
   volumes:
     - ../../dags:/opt/airflow/dags
     - ../../logs:/opt/airflow/logs
@@ -89,8 +95,14 @@ services:
       POSTGRES_USER: airflow
       POSTGRES_PASSWORD: airflow
       POSTGRES_DB: airflow
+      MARQUEZ_DB: marquez
+      MARQUEZ_USER: marquez
+      MARQUEZ_PASSWORD: marquez
     volumes:
       - airflow-backend-db:/var/lib/postgresql/data
+      - ../marquez/init-db.sh:/docker-entrypoint-initdb.d/marquez-init-db.sh
+    networks:
+      - data-platform
     healthcheck:
       test: ["CMD", "pg_isready", "-U", "airflow"]
       interval: 10s
@@ -105,6 +117,8 @@ services:
     image: redis:7.2-bookworm
     expose:
       - 6379
+    networks:
+      - data-platform
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
@@ -117,8 +131,8 @@ services:
     container_name: airflow-apiserver
     <<: *airflow-common
     build:
-      context: .
-      dockerfile: Dockerfile
+      context: ../..
+      dockerfile: docker/airflow/Dockerfile
     image: extended_airflow:3.1.7-python3.12
     command: api-server
     ports:
@@ -354,3 +368,7 @@ services:
 
 volumes:
   airflow-backend-db:
+
+networks:
+  data-platform:
+    name: data-platform
