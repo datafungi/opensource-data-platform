@@ -15,3 +15,6 @@ wheels/
 
 # Log files
 logs/
+
+# AI agents
+.claude
