@@ -1,0 +1,35 @@
+services:
+  marquez-api:
+    image: marquezproject/marquez:0.51.1
+    container_name: marquez-api
+    environment:
+      - MARQUEZ_PORT=5000
+      - MARQUEZ_ADMIN_PORT=5001
+      - POSTGRES_HOST=airflow-postgres
+      - POSTGRES_PORT=5432
+    ports:
+      - "5000:5000"
+      - "5001:5001"
+    networks:
+      - data-platform
+    restart: on-failure
+
+  marquez-web:
+    image: marquezproject/marquez-web:0.51.1
+    container_name: marquez-web
+    environment:
+      - MARQUEZ_HOST=marquez-api
+      - MARQUEZ_PORT=5000
+      - WEB_PORT=3000
+    ports:
+      - "3000:3000"
+    networks:
+      - data-platform
+    depends_on:
+      - marquez-api
+    restart: on-failure
+
+networks:
+  data-platform:
+    external: true
+    name: data-platform
