@@ -2,20 +2,27 @@ services:
   postgres:
     container_name: platform-postgres
     image: postgres:16
+    env_file:
+      - .env
     environment:
-      POSTGRES_USER: airflow
-      POSTGRES_PASSWORD: airflow
-      POSTGRES_DB: airflow
-      MARQUEZ_DB: marquez
-      MARQUEZ_USER: marquez
-      MARQUEZ_PASSWORD: marquez
+      POSTGRES_USER: ${AIRFLOW_DB_USER}
+      POSTGRES_PASSWORD: ${AIRFLOW_DB_PASSWORD}
+      POSTGRES_DB: ${AIRFLOW_DB_NAME}
+      MARQUEZ_DB: ${MARQUEZ_DB}
+      MARQUEZ_USER: ${MARQUEZ_USER}
+      MARQUEZ_PASSWORD: ${MARQUEZ_PASSWORD}
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 1G
     volumes:
       - platform-db:/var/lib/postgresql/data
       - ./docker/postgres/init-db.sh:/docker-entrypoint-initdb.d/marquez-init-db.sh
     networks:
       - data-platform
     healthcheck:
-      test: ["CMD", "pg_isready", "-U", "airflow"]
+      test: ["CMD", "pg_isready", "-U", "${AIRFLOW_DB_USER}"]
       interval: 10s
       retries: 5
       start_period: 5s

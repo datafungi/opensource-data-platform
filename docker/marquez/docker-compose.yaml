@@ -2,11 +2,16 @@ services:
   marquez-api:
     image: marquezproject/marquez:0.51.1
     container_name: marquez-api
+    env_file:
+      - .env
     environment:
-      - MARQUEZ_PORT=5000
-      - MARQUEZ_ADMIN_PORT=5001
+      - MARQUEZ_PORT=${MARQUEZ_PORT}
+      - MARQUEZ_ADMIN_PORT=${MARQUEZ_ADMIN_PORT}
       - POSTGRES_HOST=platform-postgres
       - POSTGRES_PORT=5432
+      - POSTGRES_USER=${MARQUEZ_USER}
+      - POSTGRES_PASSWORD=${MARQUEZ_PASSWORD}
+      - POSTGRES_DB=${MARQUEZ_DB}
     ports:
       - "5000:5000"
       - "5001:5001"
