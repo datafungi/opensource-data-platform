@@ -49,7 +49,7 @@ x-airflow-common: &airflow-common
   # Comment the image line, place your Dockerfile in the directory where you placed the docker-compose.yaml
   # and uncomment the "build" line below, Then run `docker-compose build` to build the images.
   build:
-    context: ../..
+    context: .
     dockerfile: docker/airflow/Dockerfile
   image: extended_airflow:3.1.7-python3.12
   pull_policy: never
@@ -75,12 +75,12 @@ x-airflow-common: &airflow-common
   networks:
     - data-platform
   volumes:
-    - ../../dags:/opt/airflow/dags
-    - ../../logs:/opt/airflow/logs
-    - ../../config:/opt/airflow/config
+    - ./dags:/opt/airflow/dags
+    - ./logs:/opt/airflow/logs
+    - ./config:/opt/airflow/config
   user: "${AIRFLOW_UID:-50000}:0"
   env_file:
-    - ../../.env
+    - .env
   depends_on: &airflow-common-depends-on
     redis:
       condition: service_healthy
@@ -88,28 +88,6 @@ x-airflow-common: &airflow-common
       condition: service_healthy
 
 services:
-  postgres:
-    container_name: airflow-postgres
-    image: postgres:16
-    environment:
-      POSTGRES_USER: airflow
-      POSTGRES_PASSWORD: airflow
-      POSTGRES_DB: airflow
-      MARQUEZ_DB: marquez
-      MARQUEZ_USER: marquez
-      MARQUEZ_PASSWORD: marquez
-    volumes:
-      - airflow-backend-db:/var/lib/postgresql/data
-      - ../marquez/init-db.sh:/docker-entrypoint-initdb.d/marquez-init-db.sh
-    networks:
-      - data-platform
-    healthcheck:
-      test: ["CMD", "pg_isready", "-U", "airflow"]
-      interval: 10s
-      retries: 5
-      start_period: 5s
-    restart: always
-
   redis:
     container_name: redis
     # Redis is limited to 7.2-bookworm due to licencing change
@@ -131,7 +109,7 @@ services:
     container_name: airflow-apiserver
     <<: *airflow-common
     build:
-      context: ../..
+      context: .
       dockerfile: docker/airflow/Dockerfile
     image: extended_airflow:3.1.7-python3.12
     command: api-server
@@ -366,9 +344,7 @@ services:
       airflow-init:
         condition: service_completed_successfully
 
-volumes:
-  airflow-backend-db:
-
 networks:
   data-platform:
+    external: true
     name: data-platform
