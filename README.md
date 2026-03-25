@@ -1,60 +1,120 @@
 # Opensource Data Platform
 
-A containerized Apache Airflow environment for data pipeline orchestration, built for local development with a distributed execution architecture.
+A containerized local development platform for Apache Airflow data pipelines, featuring distributed execution, data lineage tracking, S3-compatible object storage, and a mock ServiceNow API for pipeline development without external dependencies.
 
 ## Stack
 
-- **Apache Airflow 3.1.7** — workflow orchestration
-- **CeleryExecutor** with Redis broker — distributed task execution
-- **PostgreSQL 16** — Airflow metadata database
-- **Docker Compose** — local service orchestration
+- **Apache Airflow 3.1.7** — workflow orchestration (CeleryExecutor)
+- **Redis** — Celery message broker
+- **PostgreSQL 16** — shared metadata database (Airflow + Marquez)
+- **Marquez** — data lineage tracking via OpenLineage
+- **MinIO** — S3-compatible object storage
+- **Mock ServiceNow API** — local ServiceNow Table API simulator backed by DuckDB
 - **Python 3.12** / **uv** — dependency management
+- **Docker Compose** — local service orchestration
 
 ## Project Structure
 
 ```
 .
-├── config/airflow.cfg          # Airflow configuration
-├── dags/                       # DAG definitions
-│   └── plugins/                # Custom plugins
+├── dags/                            # Airflow DAG definitions
+│   └── plugins/
+│       ├── operators/               # Custom operators
+│       └── providers/               # Custom providers
 ├── docker/
-│   └── airflow/
-│       ├── Dockerfile
-│       └── docker-compose.yaml
-├── logs/                       # Runtime logs (auto-created)
+│   ├── airflow/
+│   │   ├── Dockerfile               # Custom Airflow image
+│   │   └── docker-compose.yaml
+│   ├── marquez/
+│   │   └── docker-compose.yaml
+│   ├── minio/
+│   │   └── docker-compose.yaml
+│   ├── mock-servicenow/
+│   │   ├── Dockerfile
+│   │   ├── docker-compose.yaml
+│   │   ├── requirements.txt
+│   │   └── app/                     # FastAPI mock application
+│   └── postgres/
+│       ├── docker-compose.yaml
+│       └── init-db.sh               # Creates airflow + marquez databases
 ├── tests/
-└── pyproject.toml
+│   └── mock-servicenow/             # Mock API tests
+├── pyproject.toml
+└── Makefile
 ```
 
 ## Getting Started
 
-**Prerequisites:** Docker, Docker Compose, 4GB+ RAM
+**Prerequisites:** Docker, Docker Compose, Python 3.12, uv, 8GB+ RAM
 
 ```bash
-# Clone the repo
-git clone <repository-url>
-cd opensource-data-platform
+# Copy and configure environment variables
+cp .env.example .env   # then edit credentials as needed
+
+# Install Python dependencies
+uv sync --dev
 
 # Start all services
-docker compose -f docker/airflow/docker-compose.yaml up -d
+make up
+
+# Or start individual components
+make up component=postgres
+make up component=airflow
+make up component=marquez
+make up component=minio
+make up component=mock-servicenow
 ```
 
-Access the Airflow UI at **http://localhost:8080** with credentials `airflow` / `airflow`.
+## Service Access
 
-## Services
+| Service              | URL                     | Credentials              |
+|----------------------|-------------------------|--------------------------|
+| Airflow UI           | http://localhost:8080   | airflow / airflow        |
+| Flower               | http://localhost:5555   | (profile: flower)        |
+| Marquez Web          | http://localhost:3000   | —                        |
+| Marquez API          | http://localhost:5000   | —                        |
+| MinIO Console        | http://localhost:9001   | minioadmin / minioadmin  |
+| Mock ServiceNow API  | http://localhost:8001   | admin / admin            |
 
-| Service           | Port | Description                      |
-|-------------------|------|----------------------------------|
-| API Server        | 8080 | Airflow REST API + UI            |
-| Flower            | 5555 | Celery task monitoring (optional)|
-| PostgreSQL        | —    | Metadata database                |
-| Redis             | —    | Celery message broker            |
+## Mock ServiceNow API
 
-To start Flower: `docker compose --profile flower up -d`
+A local FastAPI service that mimics the [ServiceNow Table API](https://developer.servicenow.com/dev.do#!/reference/api/latest/rest/c_TableAPI), backed by DuckDB. Use it to develop and test Airflow DAGs that pull from ServiceNow without a real instance.
+
+**Supported tables:** `incident`, `problem`, `change_request`, `sys_user`, `cmdb_ci`
+
+**Default dataset:** 1 million records per table (configurable via `MOCK_SN_TOTAL_RECORDS`). Generated on first startup using DuckDB SQL and persisted to a named Docker volume — subsequent restarts skip generation.
+
+```bash
+# Fetch incidents
+curl -u admin:admin "http://localhost:8001/api/now/table/incident?sysparm_limit=10"
+
+# Filter by field values
+curl -u admin:admin "http://localhost:8001/api/now/table/incident?sysparm_query=state=1^priority=2"
+
+# Project specific fields
+curl -u admin:admin "http://localhost:8001/api/now/table/incident?sysparm_fields=sys_id,number,state"
+
+# Paginate
+curl -u admin:admin "http://localhost:8001/api/now/table/incident?sysparm_limit=1000&sysparm_offset=50000"
+
+# Health check (no auth required)
+curl http://localhost:8001/health
+```
+
+To use the mock from inside the Docker network (e.g. from an Airflow DAG), set the ServiceNow base URL to `http://mock-servicenow:8000`.
+
+## Development
+
+```bash
+uv sync --dev          # Install all dependencies
+uv run pytest          # Run all tests
+uv run ruff check .    # Lint
+uv run ruff format .   # Format
+```
 
 ## Adding DAGs
 
-Place Python DAG files in the `dags/` directory. They are automatically picked up by the DAG processor. Custom operators and hooks go in `dags/plugins/`.
+Place `.py` files in `dags/`. Custom operators and providers go in `dags/plugins/operators/` and `dags/plugins/providers/`. The `dags/` directory is volume-mounted into all Airflow containers.
 
 ## License
 

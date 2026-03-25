@@ -15,6 +15,11 @@ dependencies = [
 
 [dependency-groups]
 dev = [
+    "faker>=37.0.0",
+    "httpx>=0.28.0",
     "pytest>=9.0.2",
     "ruff>=0.15.7",
 ]
+
+[tool.pytest.ini_options]
+pythonpath = ["docker/mock-servicenow"]
