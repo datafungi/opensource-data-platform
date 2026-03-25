@@ -1,0 +1,36 @@
+services:
+  minio:
+    container_name: minio
+    image: quay.io/minio/minio:latest
+    command: server /data --console-address ":9001"
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    env_file:
+      - .env
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 512M
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 10s
+    volumes:
+      - minio_data:/data
+    networks:
+      - data-platform
+
+volumes:
+  minio_data:
+
+networks:
+  data-platform:
+    external: true
+    name: data-platform
