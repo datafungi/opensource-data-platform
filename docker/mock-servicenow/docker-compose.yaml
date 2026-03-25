@@ -1,0 +1,40 @@
+services:
+  mock-servicenow:
+    container_name: mock-servicenow
+    build:
+      context: docker/mock-servicenow
+      dockerfile: Dockerfile
+    ports:
+      - "8001:8000"
+    env_file:
+      - .env
+    environment:
+      MOCK_SN_USERNAME: ${MOCK_SN_USERNAME}
+      MOCK_SN_PASSWORD: ${MOCK_SN_PASSWORD}
+      MOCK_SN_TOTAL_RECORDS: ${MOCK_SN_TOTAL_RECORDS}
+      MOCK_SN_SEED: ${MOCK_SN_SEED}
+      MOCK_SN_DB_PATH: /data/mock_servicenow.duckdb
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 2G
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    volumes:
+      - mock_sn_data:/data
+    networks:
+      - data-platform
+    restart: always
+
+volumes:
+  mock_sn_data:
+
+networks:
+  data-platform:
+    external: true
+    name: data-platform
