@@ -97,6 +97,11 @@ services:
       - 6379
     networks:
       - data-platform
+    deploy:
+      resources:
+        limits:
+          cpus: "0.25"
+          memory: 256M
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
