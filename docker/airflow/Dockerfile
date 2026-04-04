@@ -23,6 +23,7 @@ RUN apt-get update \
 FROM base AS airflow
 
 ARG AIRFLOW_HOME=/opt/airflow
+ARG CONSTRAINT_URL
 
 USER 50000
 
@@ -30,6 +31,7 @@ WORKDIR ${AIRFLOW_HOME}
 
 COPY pyproject.toml uv.lock ./
 
-RUN uv pip install --upgrade pip && uv pip install -r pyproject.toml
+RUN uv pip install --upgrade pip \
+    && uv pip install --constraint "${CONSTRAINT_URL}" -r pyproject.toml
 
 ENV PYTHONDONTWRITEBYTECODE=1
