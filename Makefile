@@ -3,6 +3,7 @@ AIRFLOW_COMPOSE     := docker/airflow/docker-compose.yaml
 MARQUEZ_COMPOSE     := docker/marquez/docker-compose.yaml
 MINIO_COMPOSE       := docker/minio/docker-compose.yaml
 MOCK_SN_COMPOSE     := docker/mock-servicenow/docker-compose.yaml
+CLICKHOUSE_COMPOSE  := docker/clickhouse/single-node/docker-compose.yaml
 AIRFLOW_IMAGE       := extended_airflow:3.1.7-python3.12
 
 # Compose files per component (dependencies included)
@@ -11,7 +12,8 @@ COMPOSE_FILES_airflow          := $(POSTGRES_COMPOSE) $(AIRFLOW_COMPOSE)
 COMPOSE_FILES_marquez          := $(POSTGRES_COMPOSE) $(MARQUEZ_COMPOSE)
 COMPOSE_FILES_minio            := $(MINIO_COMPOSE)
 COMPOSE_FILES_mock-servicenow  := $(MOCK_SN_COMPOSE)
-ALL_COMPOSE_FILES              := $(POSTGRES_COMPOSE) $(AIRFLOW_COMPOSE) $(MARQUEZ_COMPOSE) $(MINIO_COMPOSE) $(MOCK_SN_COMPOSE)
+COMPOSE_FILES_clickhouse       := $(CLICKHOUSE_COMPOSE)
+ALL_COMPOSE_FILES              := $(POSTGRES_COMPOSE) $(AIRFLOW_COMPOSE) $(MARQUEZ_COMPOSE) $(MINIO_COMPOSE) $(CLICKHOUSE_COMPOSE)
 
 # Support both `make up component=foo` (variable override) and `make up foo` (goal-based)
 ifdef component
