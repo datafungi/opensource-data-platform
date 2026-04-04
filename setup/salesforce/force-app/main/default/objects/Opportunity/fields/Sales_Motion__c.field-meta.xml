@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+  <fullName>Sales_Motion__c</fullName>
+  <description>How this opportunity entered the pipeline.</description>
+  <externalId>false</externalId>
+  <label>Sales Motion</label>
+  <required>false</required>
+  <trackHistory>false</trackHistory>
+  <type>Picklist</type>
+  <valueSet>
+    <valueSetDefinition>
+      <sorted>false</sorted>
+      <value><fullName>Outbound</fullName><default>false</default></value>
+      <value><fullName>Inbound</fullName><default>false</default></value>
+      <value><fullName>Partner-led</fullName><default>false</default></value>
+      <value><fullName>Expansion</fullName><default>false</default></value>
+    </valueSetDefinition>
+  </valueSet>
+</CustomField>

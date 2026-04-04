@@ -9,8 +9,13 @@ dependencies = [
     "apache-airflow-providers-openlineage>=2.12.0",
     "apache-airflow-providers-postgres>=6.6.1",
     "apache-airflow-providers-sqlite==4.2.1",
+    "cumulusci>=4.9.0",
     "duckdb>=1.5.1",
+    "duckdb-engine>=0.17.0",
     "polars>=1.39.3",
+    "pytz>=2026.1.post1",
+    "setuptools==79.0.1",
+    "simple-salesforce>=1.12.9",
 ]
 
 [dependency-groups]
@@ -19,6 +24,7 @@ dev = [
     "httpx>=0.28.0",
     "pytest>=9.0.2",
     "ruff>=0.15.7",
+    "snowfakery>=4.2.1",
 ]
 
 [tool.pytest.ini_options]
