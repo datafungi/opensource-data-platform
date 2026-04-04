@@ -16,6 +16,7 @@ This folder contains Snowfakery data generation, Salesforce metadata, and script
 From `setup/salesforce` you can run:
 
 ```bash
+uv sync
 make help
 ```
 

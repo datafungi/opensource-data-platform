@@ -139,6 +139,7 @@ Requirements for Salesforce workflow:
 
 - Salesforce CLI (`sf`)
 - Authenticated org alias (default expected by scripts: `dev-org`)
+- Run `uv sync` inside `setup/salesforce` to install local Snowfakery tooling
 
 ## Development
 
