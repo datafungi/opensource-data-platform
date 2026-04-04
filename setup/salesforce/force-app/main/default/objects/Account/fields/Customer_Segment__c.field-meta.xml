@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+  <fullName>Customer_Segment__c</fullName>
+  <description>Market segment targeted by the business model.</description>
+  <externalId>false</externalId>
+  <label>Customer Segment</label>
+  <required>false</required>
+  <trackHistory>false</trackHistory>
+  <type>Picklist</type>
+  <valueSet>
+    <valueSetDefinition>
+      <sorted>false</sorted>
+      <value><fullName>Enterprise</fullName><default>false</default></value>
+      <value><fullName>SME</fullName><default>false</default></value>
+      <value><fullName>Developer Team</fullName><default>false</default></value>
+    </valueSetDefinition>
+  </valueSet>
+</CustomField>

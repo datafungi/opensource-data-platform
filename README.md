@@ -67,14 +67,14 @@ make up component=mock-servicenow
 
 ## Service Access
 
-| Service              | URL                     | Credentials              |
-|----------------------|-------------------------|--------------------------|
-| Airflow UI           | http://localhost:8080   | airflow / airflow        |
-| Flower               | http://localhost:5555   | (profile: flower)        |
-| Marquez Web          | http://localhost:3000   | —                        |
-| Marquez API          | http://localhost:5000   | —                        |
-| MinIO Console        | http://localhost:9001   | minioadmin / minioadmin  |
-| Mock ServiceNow API  | http://localhost:8001   | admin / admin            |
+| Service             | URL                   | Credentials             |
+| ------------------- | --------------------- | ----------------------- |
+| Airflow UI          | http://localhost:8080 | airflow / airflow       |
+| Flower              | http://localhost:5555 | (profile: flower)       |
+| Marquez Web         | http://localhost:3000 | —                       |
+| Marquez API         | http://localhost:5000 | —                       |
+| MinIO Console       | http://localhost:9001 | minioadmin / minioadmin |
+| Mock ServiceNow API | http://localhost:8001 | admin / admin           |
 
 ## Mock ServiceNow API
 

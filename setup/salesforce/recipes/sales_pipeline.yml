@@ -1,0 +1,917 @@
+# ----------------------------
+# Accounts (APAC-majority, plus a small US SaaS footprint)
+# ----------------------------
+
+- object: Account
+  nickname: SaaSOnlyApacAccounts
+  count: 36
+  fields:
+    Name: ${{fake.company() + " Data Cloud"}}
+    Industry:
+      random_choice:
+        - Technology
+        - Finance
+        - Retail
+        - Telecommunications
+        - Healthcare
+        - Manufacturing
+    Type: Customer
+    Phone:
+      fake: phone_number
+    Website:
+      fake: url
+    BillingCity:
+      fake: city
+    BillingCountry:
+      random_choice:
+        - Singapore
+        - Vietnam
+        - Indonesia
+        - Malaysia
+        - Thailand
+        - Philippines
+    NumberOfEmployees:
+      random_number:
+        min: 25
+        max: 3000
+    AnnualRevenue:
+      random_number:
+        min: 500000
+        max: 120000000
+    Description: APAC SME/Enterprise; SaaS-only customer (observability and/or governance).
+
+- object: Account
+  nickname: ServicesOnlyApacAccounts
+  count: 30
+  fields:
+    Name: ${{fake.company() + " Analytics Program"}}
+    Industry:
+      random_choice:
+        - Finance
+        - Retail
+        - Manufacturing
+        - Transportation
+        - Telecommunications
+        - Government
+    Type: Customer
+    Phone:
+      fake: phone_number
+    Website:
+      fake: url
+    BillingCity:
+      fake: city
+    BillingCountry:
+      random_choice:
+        - Singapore
+        - Vietnam
+        - Indonesia
+        - Malaysia
+        - Thailand
+        - Philippines
+    NumberOfEmployees:
+      random_number:
+        min: 80
+        max: 12000
+    AnnualRevenue:
+      random_number:
+        min: 2000000
+        max: 480000000
+    Description: APAC customer; services-only (strategy/platform/migration/managed services).
+
+- object: Account
+  nickname: HybridApacAccounts
+  count: 24
+  fields:
+    Name: ${{fake.company() + " Group"}}
+    Industry:
+      random_choice:
+        - Technology
+        - Finance
+        - Retail
+        - Telecommunications
+        - Energy
+    Type: Customer
+    Phone:
+      fake: phone_number
+    Website:
+      fake: url
+    BillingCity:
+      fake: city
+    BillingCountry:
+      random_choice:
+        - Singapore
+        - Vietnam
+        - Indonesia
+        - Malaysia
+        - Thailand
+        - Philippines
+    NumberOfEmployees:
+      random_number:
+        min: 150
+        max: 25000
+    AnnualRevenue:
+      random_number:
+        min: 5000000
+        max: 1000000000
+    Description: APAC customer; hybrid (services + SaaS).
+
+- object: Account
+  nickname: SaaSOnlyUsAccounts
+  count: 10
+  fields:
+    Name: ${{fake.company() + " Labs"}}
+    Industry:
+      random_choice:
+        - Technology
+        - Healthcare
+        - Finance
+        - Retail
+    Type: Customer
+    Phone:
+      fake: phone_number
+    Website:
+      fake: url
+    BillingCity:
+      fake: city
+    BillingCountry: United States
+    NumberOfEmployees:
+      random_number:
+        min: 30
+        max: 5000
+    AnnualRevenue:
+      random_number:
+        min: 1000000
+        max: 350000000
+    Description: US customer; SaaS-only (self-serve or team expansion).
+
+- object: Account
+  nickname: ServicesParentApacAccounts
+  count: 12
+  fields:
+    Name: ${{fake.company() + " Holdings"}}
+    Industry:
+      random_choice:
+        - Finance
+        - Retail
+        - Manufacturing
+        - Telecommunications
+    Type: Customer
+    Phone:
+      fake: phone_number
+    Website:
+      fake: url
+    BillingCity:
+      fake: city
+    BillingCountry:
+      random_choice:
+        - Singapore
+        - Vietnam
+        - Indonesia
+        - Malaysia
+    NumberOfEmployees:
+      random_number:
+        min: 500
+        max: 30000
+    AnnualRevenue:
+      random_number:
+        min: 20000000
+        max: 2500000000
+    Description: APAC parent account; services-first relationship.
+
+- object: Account
+  nickname: SaaSParentApacAccounts
+  count: 12
+  fields:
+    Name: ${{fake.company() + " Digital"}}
+    Industry:
+      random_choice:
+        - Technology
+        - Finance
+        - Retail
+        - Telecommunications
+    Type: Customer
+    Phone:
+      fake: phone_number
+    Website:
+      fake: url
+    BillingCity:
+      fake: city
+    BillingCountry:
+      random_choice:
+        - Singapore
+        - Vietnam
+        - Indonesia
+        - Malaysia
+    NumberOfEmployees:
+      random_number:
+        min: 150
+        max: 12000
+    AnnualRevenue:
+      random_number:
+        min: 8000000
+        max: 900000000
+    Description: APAC parent account; SaaS-first relationship.
+
+- object: Account
+  nickname: ServicesSubsidiaryFromSaaSAccounts
+  count: 24
+  fields:
+    Name: ${{fake.company() + " Subsidiary"}}
+    ParentId:
+      random_reference: SaaSParentApacAccounts
+    Industry:
+      random_choice:
+        - Manufacturing
+        - Transportation
+        - Retail
+        - Healthcare
+    Type: Customer
+    Phone:
+      fake: phone_number
+    Website:
+      fake: url
+    BillingCity:
+      fake: city
+    BillingCountry:
+      random_choice:
+        - Vietnam
+        - Indonesia
+        - Malaysia
+        - Thailand
+        - Philippines
+    NumberOfEmployees:
+      random_number:
+        min: 40
+        max: 3500
+    AnnualRevenue:
+      random_number:
+        min: 1000000
+        max: 180000000
+    Description: Subsidiary account; services expansion from SaaS-first parent.
+
+- object: Account
+  nickname: SaaSSubsidiaryFromServicesAccounts
+  count: 24
+  fields:
+    Name: ${{fake.company() + " Subsidiary"}}
+    ParentId:
+      random_reference: ServicesParentApacAccounts
+    Industry:
+      random_choice:
+        - Technology
+        - Finance
+        - Retail
+        - Healthcare
+    Type: Customer
+    Phone:
+      fake: phone_number
+    Website:
+      fake: url
+    BillingCity:
+      fake: city
+    BillingCountry:
+      random_choice:
+        - Vietnam
+        - Indonesia
+        - Malaysia
+        - Thailand
+        - Philippines
+    NumberOfEmployees:
+      random_number:
+        min: 30
+        max: 2500
+    AnnualRevenue:
+      random_number:
+        min: 800000
+        max: 160000000
+    Description: Subsidiary account; SaaS expansion from services-first parent.
+
+
+# ----------------------------
+# Contacts
+# ----------------------------
+
+- object: Contact
+  count: 45
+  fields:
+    FirstName:
+      fake: first_name
+    LastName:
+      fake: last_name
+    Email:
+      fake: email
+    Phone:
+      fake: phone_number
+    Title:
+      random_choice:
+        - CTO
+        - VP of Data
+        - Head of Analytics
+        - Data Platform Lead
+        - Product Manager
+    AccountId:
+      random_reference: SaaSOnlyApacAccounts
+
+- object: Contact
+  count: 16
+  fields:
+    FirstName:
+      fake: first_name
+    LastName:
+      fake: last_name
+    Email:
+      fake: email
+    Phone:
+      fake: phone_number
+    Title:
+      random_choice:
+        - CTO
+        - Director of Engineering
+        - Data Engineering Manager
+        - Analytics Lead
+    AccountId:
+      random_reference: SaaSOnlyUsAccounts
+
+- object: Contact
+  count: 42
+  fields:
+    FirstName:
+      fake: first_name
+    LastName:
+      fake: last_name
+    Email:
+      fake: email
+    Phone:
+      fake: phone_number
+    Title:
+      random_choice:
+        - CIO
+        - Director of Operations
+        - Head of Data Governance
+        - Program Manager
+        - VP of IT
+    AccountId:
+      random_reference: ServicesOnlyApacAccounts
+
+- object: Contact
+  count: 45
+  fields:
+    FirstName:
+      fake: first_name
+    LastName:
+      fake: last_name
+    Email:
+      fake: email
+    Phone:
+      fake: phone_number
+    Title:
+      random_choice:
+        - CFO
+        - CTO
+        - VP of Data
+        - Head of Governance
+        - Enterprise Architect
+    AccountId:
+      random_reference: HybridApacAccounts
+
+- object: Contact
+  count: 24
+  fields:
+    FirstName:
+      fake: first_name
+    LastName:
+      fake: last_name
+    Email:
+      fake: email
+    Phone:
+      fake: phone_number
+    Title:
+      random_choice:
+        - COO
+        - Head of Shared Services
+        - Program Director
+        - Country IT Lead
+    AccountId:
+      random_reference: ServicesParentApacAccounts
+
+- object: Contact
+  count: 24
+  fields:
+    FirstName:
+      fake: first_name
+    LastName:
+      fake: last_name
+    Email:
+      fake: email
+    Phone:
+      fake: phone_number
+    Title:
+      random_choice:
+        - CTO
+        - VP Engineering
+        - Platform Director
+        - Head of Data Products
+    AccountId:
+      random_reference: SaaSParentApacAccounts
+
+- object: Contact
+  count: 40
+  fields:
+    FirstName:
+      fake: first_name
+    LastName:
+      fake: last_name
+    Email:
+      fake: email
+    Phone:
+      fake: phone_number
+    Title:
+      random_choice:
+        - Operations Manager
+        - Analytics Manager
+        - Regional IT Manager
+        - Data Steward
+    AccountId:
+      random_reference: ServicesSubsidiaryFromSaaSAccounts
+
+- object: Contact
+  count: 40
+  fields:
+    FirstName:
+      fake: first_name
+    LastName:
+      fake: last_name
+    Email:
+      fake: email
+    Phone:
+      fake: phone_number
+    Title:
+      random_choice:
+        - Product Owner
+        - Data Platform Engineer
+        - BI Lead
+        - Engineering Manager
+    AccountId:
+      random_reference: SaaSSubsidiaryFromServicesAccounts
+
+
+# ----------------------------
+# Opportunities
+# Weighted stage distribution:
+# Prospecting(22), Qualification(20), Needs Analysis(14), Value Proposition(12),
+# Proposal/Price Quote(10), Negotiation/Review(8), Closed Won(9), Closed Lost(5)
+# ----------------------------
+
+# SaaS opportunities (APAC)
+- object: Opportunity
+  count: 45
+  fields:
+    Name: ${{fake.bs().title() + " - SaaS Evaluation"}}
+    StageName: Prospecting
+    Amount:
+      random_number:
+        min: 12000
+        max: 140000
+    CloseDate: ${{fake.date_between(start_date='-20d', end_date='+180d')}}
+    LeadSource:
+      random_choice:
+        - Web
+        - Partner Referral
+        - Other
+    Description: New SaaS pipeline from APAC digital teams.
+    AccountId:
+      random_reference: SaaSOnlyApacAccounts
+
+- object: Opportunity
+  count: 40
+  fields:
+    Name: ${{fake.bs().title() + " - SaaS Qualification"}}
+    StageName: Qualification
+    Amount:
+      random_number:
+        min: 15000
+        max: 180000
+    CloseDate: ${{fake.date_between(start_date='-10d', end_date='+140d')}}
+    LeadSource:
+      random_choice:
+        - Web
+        - Partner Referral
+        - Purchased List
+    Description: Qualified SaaS demand for observability and governance.
+    AccountId:
+      random_reference: SaaSOnlyApacAccounts
+
+- object: Opportunity
+  count: 30
+  fields:
+    Name: ${{fake.bs().title() + " - SaaS Solution Design"}}
+    StageName: Needs Analysis
+    Amount:
+      random_number:
+        min: 18000
+        max: 220000
+    CloseDate: ${{fake.date_between(start_date='-15d', end_date='+120d')}}
+    LeadSource:
+      random_choice:
+        - Web
+        - Partner Referral
+        - Phone Inquiry
+    Description: SaaS needs analysis for data platform monitoring and catalog.
+    AccountId:
+      random_reference: SaaSOnlyApacAccounts
+
+- object: Opportunity
+  count: 25
+  fields:
+    Name: ${{fake.bs().title() + " - SaaS Business Case"}}
+    StageName: Value Proposition
+    Amount:
+      random_number:
+        min: 20000
+        max: 260000
+    CloseDate: ${{fake.date_between(start_date='-15d', end_date='+90d')}}
+    LeadSource:
+      random_choice:
+        - Web
+        - Partner Referral
+        - Other
+    Description: Value articulation for APAC SaaS deployment.
+    AccountId:
+      random_reference: SaaSOnlyApacAccounts
+
+- object: Opportunity
+  count: 20
+  fields:
+    Name: ${{fake.bs().title() + " - SaaS Commercial Proposal"}}
+    StageName: Proposal/Price Quote
+    Amount:
+      random_number:
+        min: 24000
+        max: 320000
+    CloseDate: ${{fake.date_between(start_date='-5d', end_date='+60d')}}
+    LeadSource:
+      random_choice:
+        - Partner Referral
+        - Web
+        - Phone Inquiry
+    Description: Proposal for Team/Business tier with usage add-ons.
+    AccountId:
+      random_reference: SaaSOnlyApacAccounts
+
+- object: Opportunity
+  count: 15
+  fields:
+    Name: ${{fake.bs().title() + " - SaaS Negotiation"}}
+    StageName: Negotiation/Review
+    Amount:
+      random_number:
+        min: 28000
+        max: 360000
+    CloseDate: ${{fake.date_between(start_date='-5d', end_date='+45d')}}
+    LeadSource:
+      random_choice:
+        - Partner Referral
+        - Web
+        - Other
+    Description: Active commercial/legal negotiation for SaaS rollout.
+    AccountId:
+      random_reference: SaaSOnlyApacAccounts
+
+- object: Opportunity
+  count: 22
+  fields:
+    Name: ${{fake.bs().title() + " - SaaS Closed Won"}}
+    StageName: Closed Won
+    Amount:
+      random_number:
+        min: 30000
+        max: 420000
+    CloseDate: ${{fake.date_between(start_date='-720d', end_date='-10d')}}
+    LeadSource:
+      random_choice:
+        - Web
+        - Partner Referral
+        - Phone Inquiry
+    Description: Won SaaS customer; now in onboarding or expansion.
+    AccountId:
+      random_reference: SaaSOnlyApacAccounts
+
+- object: Opportunity
+  count: 13
+  fields:
+    Name: ${{fake.bs().title() + " - SaaS Closed Lost"}}
+    StageName: Closed Lost
+    Amount:
+      random_number:
+        min: 15000
+        max: 300000
+    CloseDate: ${{fake.date_between(start_date='-720d', end_date='-15d')}}
+    LeadSource:
+      random_choice:
+        - Web
+        - Purchased List
+        - Other
+    Description: Lost SaaS opportunity due to budget/timing/competition.
+    AccountId:
+      random_reference: SaaSOnlyApacAccounts
+
+# SaaS opportunities (US, smaller footprint)
+- object: Opportunity
+  count: 24
+  fields:
+    Name: ${{fake.bs().title() + " - US SaaS Pipeline"}}
+    StageName:
+      random_choice:
+        - Prospecting
+        - Qualification
+    Amount:
+      random_number:
+        min: 12000
+        max: 190000
+    CloseDate: ${{fake.date_between(start_date='-10d', end_date='+150d')}}
+    LeadSource:
+      random_choice:
+        - Web
+        - Partner Referral
+        - Purchased List
+    Description: US SaaS logo acquisition (small share of total base).
+    AccountId:
+      random_reference: SaaSOnlyUsAccounts
+
+- object: Opportunity
+  count: 20
+  fields:
+    Name: ${{fake.bs().title() + " - US SaaS Mid Funnel"}}
+    StageName:
+      random_choice:
+        - Needs Analysis
+        - Value Proposition
+    Amount:
+      random_number:
+        min: 18000
+        max: 260000
+    CloseDate: ${{fake.date_between(start_date='-15d', end_date='+100d')}}
+    LeadSource:
+      random_choice:
+        - Web
+        - Partner Referral
+        - Phone Inquiry
+    Description: Mid-funnel US SaaS opportunities.
+    AccountId:
+      random_reference: SaaSOnlyUsAccounts
+
+- object: Opportunity
+  count: 12
+  fields:
+    Name: ${{fake.bs().title() + " - US SaaS Proposal"}}
+    StageName:
+      random_choice:
+        - Proposal/Price Quote
+        - Negotiation/Review
+    Amount:
+      random_number:
+        min: 22000
+        max: 320000
+    CloseDate: ${{fake.date_between(start_date='-5d', end_date='+55d')}}
+    LeadSource:
+      random_choice:
+        - Partner Referral
+        - Web
+        - Phone Inquiry
+    Description: Late-stage US SaaS opportunities.
+    AccountId:
+      random_reference: SaaSOnlyUsAccounts
+
+- object: Opportunity
+  count: 12
+  fields:
+    Name: ${{fake.bs().title() + " - US SaaS Closed"}}
+    StageName:
+      random_choice:
+        - Closed Won
+        - Closed Lost
+    Amount:
+      random_number:
+        min: 18000
+        max: 280000
+    CloseDate: ${{fake.date_between(start_date='-720d', end_date='-10d')}}
+    LeadSource:
+      random_choice:
+        - Web
+        - Purchased List
+        - Other
+    Description: Historical US SaaS outcomes.
+    AccountId:
+      random_reference: SaaSOnlyUsAccounts
+
+# Services opportunities (core APAC)
+- object: Opportunity
+  count: 36
+  fields:
+    Name: ${{fake.bs().title() + " - Data Platform Services Discovery"}}
+    StageName: Prospecting
+    Amount:
+      random_number:
+        min: 45000
+        max: 450000
+    CloseDate: ${{fake.date_between(start_date='-30d', end_date='+190d')}}
+    LeadSource:
+      random_choice:
+        - Partner Referral
+        - Phone Inquiry
+        - Other
+    Description: Services-led opportunity (strategy/platform/migration).
+    AccountId:
+      random_reference: ServicesOnlyApacAccounts
+
+- object: Opportunity
+  count: 32
+  fields:
+    Name: ${{fake.bs().title() + " - Services Qualification"}}
+    StageName: Qualification
+    Amount:
+      random_number:
+        min: 60000
+        max: 620000
+    CloseDate: ${{fake.date_between(start_date='-20d', end_date='+160d')}}
+    LeadSource:
+      random_choice:
+        - Partner Referral
+        - Phone Inquiry
+        - Web
+    Description: Qualified services demand in APAC enterprises/SMEs.
+    AccountId:
+      random_reference: ServicesOnlyApacAccounts
+
+- object: Opportunity
+  count: 26
+  fields:
+    Name: ${{fake.bs().title() + " - Services Needs Analysis"}}
+    StageName: Needs Analysis
+    Amount:
+      random_number:
+        min: 70000
+        max: 760000
+    CloseDate: ${{fake.date_between(start_date='-20d', end_date='+130d')}}
+    LeadSource:
+      random_choice:
+        - Partner Referral
+        - Phone Inquiry
+        - Other
+    Description: Architecture and governance assessment scope.
+    AccountId:
+      random_reference: ServicesOnlyApacAccounts
+
+- object: Opportunity
+  count: 20
+  fields:
+    Name: ${{fake.bs().title() + " - Services Proposal Value"}}
+    StageName: Value Proposition
+    Amount:
+      random_number:
+        min: 90000
+        max: 900000
+    CloseDate: ${{fake.date_between(start_date='-15d', end_date='+95d')}}
+    LeadSource:
+      random_choice:
+        - Partner Referral
+        - Phone Inquiry
+        - Web
+    Description: Outcome-focused proposal for services engagement.
+    AccountId:
+      random_reference: ServicesOnlyApacAccounts
+
+- object: Opportunity
+  count: 16
+  fields:
+    Name: ${{fake.bs().title() + " - Services Price Quote"}}
+    StageName: Proposal/Price Quote
+    Amount:
+      random_number:
+        min: 100000
+        max: 1100000
+    CloseDate: ${{fake.date_between(start_date='-8d', end_date='+70d')}}
+    LeadSource:
+      random_choice:
+        - Partner Referral
+        - Phone Inquiry
+        - Other
+    Description: Finalized quote for services implementation phases.
+    AccountId:
+      random_reference: ServicesOnlyApacAccounts
+
+- object: Opportunity
+  count: 12
+  fields:
+    Name: ${{fake.bs().title() + " - Services Negotiation"}}
+    StageName: Negotiation/Review
+    Amount:
+      random_number:
+        min: 120000
+        max: 1250000
+    CloseDate: ${{fake.date_between(start_date='-5d', end_date='+55d')}}
+    LeadSource:
+      random_choice:
+        - Partner Referral
+        - Phone Inquiry
+        - Other
+    Description: Commercial/legal review of APAC services contracts.
+    AccountId:
+      random_reference: ServicesOnlyApacAccounts
+
+- object: Opportunity
+  count: 20
+  fields:
+    Name: ${{fake.bs().title() + " - Services Closed Won"}}
+    StageName: Closed Won
+    Amount:
+      random_number:
+        min: 150000
+        max: 1500000
+    CloseDate: ${{fake.date_between(start_date='-720d', end_date='-10d')}}
+    LeadSource:
+      random_choice:
+        - Partner Referral
+        - Phone Inquiry
+        - Other
+    Description: Won services projects driving reference and upsell.
+    AccountId:
+      random_reference: ServicesOnlyApacAccounts
+
+- object: Opportunity
+  count: 10
+  fields:
+    Name: ${{fake.bs().title() + " - Services Closed Lost"}}
+    StageName: Closed Lost
+    Amount:
+      random_number:
+        min: 60000
+        max: 800000
+    CloseDate: ${{fake.date_between(start_date='-720d', end_date='-15d')}}
+    LeadSource:
+      random_choice:
+        - Partner Referral
+        - Phone Inquiry
+        - Other
+    Description: Lost services bids (budget/scope/timing constraints).
+    AccountId:
+      random_reference: ServicesOnlyApacAccounts
+
+# Cross-sell: SaaS-first parent -> services for subsidiaries
+- object: Opportunity
+  count: 74
+  fields:
+    Name: ${{fake.bs().title() + " - Subsidiary Services Expansion"}}
+    StageName:
+      random_choice:
+        - Prospecting
+        - Qualification
+        - Needs Analysis
+        - Value Proposition
+        - Proposal/Price Quote
+        - Negotiation/Review
+        - Closed Won
+        - Closed Lost
+    Amount:
+      random_number:
+        min: 50000
+        max: 850000
+    CloseDate: ${{fake.date_between(start_date='-720d', end_date='+140d')}}
+    LeadSource:
+      random_choice:
+        - Partner Referral
+        - Phone Inquiry
+        - Web
+        - Other
+    Description: Services sold to subsidiary after parent adopted SaaS.
+    AccountId:
+      random_reference: ServicesSubsidiaryFromSaaSAccounts
+
+# Cross-sell: Services-first parent -> SaaS for subsidiaries
+- object: Opportunity
+  count: 74
+  fields:
+    Name: ${{fake.bs().title() + " - Subsidiary SaaS Expansion"}}
+    StageName:
+      random_choice:
+        - Prospecting
+        - Qualification
+        - Needs Analysis
+        - Value Proposition
+        - Proposal/Price Quote
+        - Negotiation/Review
+        - Closed Won
+        - Closed Lost
+    Amount:
+      random_number:
+        min: 15000
+        max: 260000
+    CloseDate: ${{fake.date_between(start_date='-720d', end_date='+140d')}}
+    LeadSource:
+      random_choice:
+        - Web
+        - Partner Referral
+        - Phone Inquiry
+    Description: SaaS sold to subsidiary after services-led parent relationship.
+    AccountId:
+      random_reference: SaaSSubsidiaryFromServicesAccounts
