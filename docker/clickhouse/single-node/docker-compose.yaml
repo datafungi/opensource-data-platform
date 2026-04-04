@@ -1,0 +1,46 @@
+services:
+  clickhouse:
+    image: clickhouse/clickhouse-server:26.3-alpine
+    container_name: clickhouse-server
+    ports:
+      - "8123:8123"
+      - "9000:9000"
+    volumes:
+      - ./docker/clickhouse/single-node/config/config.xml:/etc/clickhouse-server/config.xml
+      - ./docker/clickhouse/single-node/config/users.xml:/etc/clickhouse-server/users.xml
+      - ./docker/clickhouse/single-node/data:/var/lib/clickhouse
+      - ./docker/clickhouse/single-node/logs:/var/log/clickhouse-server
+    env_file:
+      - .env
+    networks:
+      - data-platform
+    environment:
+      CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: ${CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT-1}
+      CLICKHOUSE_DB: ${CLICKHOUSE_DB-default}
+      CLICKHOUSE_USER: ${CLICKHOUSE_USER-default}
+      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD}
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - clickhouse-client --user "$$CLICKHOUSE_USER" --password "$$CLICKHOUSE_PASSWORD" -q "SELECT 1" >/dev/null 2>&1 || exit 1
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          cpus: "2"
+          memory: 2G
+        reservations:
+          cpus: "2"
+          memory: 1G
+    ulimits:
+      nofile:
+        soft: 262144
+        hard: 262144
+
+networks:
+  data-platform:
+    external: true
+    name: data-platform
