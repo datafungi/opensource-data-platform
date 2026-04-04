@@ -11,11 +11,8 @@ services:
       MARQUEZ_DB: ${MARQUEZ_DB}
       MARQUEZ_USER: ${MARQUEZ_USER}
       MARQUEZ_PASSWORD: ${MARQUEZ_PASSWORD}
-    deploy:
-      resources:
-        limits:
-          cpus: "1.0"
-          memory: 1G
+    cpus: "0.35"
+    mem_limit: 1G
     volumes:
       - platform-db:/var/lib/postgresql/data
       - ./docker/postgres/init-db.sh:/docker-entrypoint-initdb.d/marquez-init-db.sh

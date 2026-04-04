@@ -17,6 +17,8 @@ services:
       - "5001:5001"
     networks:
       - data-platform
+    cpus: "0.20"
+    mem_limit: 512M
     restart: on-failure
 
   marquez-web:
@@ -30,6 +32,8 @@ services:
       - "3000:3000"
     networks:
       - data-platform
+    cpus: "0.10"
+    mem_limit: 256M
     depends_on:
       - marquez-api
     restart: on-failure
