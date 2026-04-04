@@ -10,6 +10,7 @@ A containerized local development platform for Apache Airflow data pipelines, fe
 - **Marquez** — data lineage tracking via OpenLineage
 - **MinIO** — S3-compatible object storage
 - **Mock ServiceNow API** — local ServiceNow Table API simulator backed by DuckDB
+- **Salesforce synthetic data setup** — Snowfakery recipe, enrichment/loader scripts, and metadata for pipeline analytics
 - **Python 3.12** / **uv** — dependency management
 - **Docker Compose** — local service orchestration
 
@@ -21,6 +22,17 @@ A containerized local development platform for Apache Airflow data pipelines, fe
 │   └── plugins/
 │       ├── operators/               # Custom operators
 │       └── providers/               # Custom providers
+├── setup/
+│   ├── context/
+│   │   └── BUSINESS_MODEL.md        # Business assumptions for synthetic data generation
+│   └── salesforce/
+│       ├── recipes/                 # Snowfakery recipe(s)
+│       ├── scripts/                 # Auth, purge, enrich, load utilities
+│       ├── docs/                    # Pipeline analytics playbook (SOQL)
+│       ├── force-app/               # Salesforce metadata (fields, permission set)
+│       ├── data/                    # Generated CSV artifacts
+│       ├── Makefile                 # Salesforce workflow shortcuts
+│       └── README.md
 ├── docker/
 │   ├── airflow/
 │   │   ├── Dockerfile               # Custom Airflow image
@@ -38,7 +50,8 @@ A containerized local development platform for Apache Airflow data pipelines, fe
 │       ├── docker-compose.yaml
 │       └── init-db.sh               # Creates airflow + marquez databases
 ├── tests/
-│   └── mock-servicenow/             # Mock API tests
+│   ├── mock-servicenow/             # Mock API tests
+│   └── salesforce/                  # Salesforce setup script unit tests
 ├── pyproject.toml
 └── Makefile
 ```
@@ -102,6 +115,30 @@ curl http://localhost:8001/health
 ```
 
 To use the mock from inside the Docker network (e.g. from an Airflow DAG), set the ServiceNow base URL to `http://mock-servicenow:8000`.
+
+## Salesforce Synthetic Data Setup
+
+The repository includes a dedicated Salesforce setup for generating and loading synthetic pipeline data aligned to a hybrid Services + SaaS business model.
+
+Key locations:
+
+- `setup/context/BUSINESS_MODEL.md`
+- `setup/salesforce/README.md`
+- `setup/salesforce/docs/PIPELINE_ANALYTICS_PLAYBOOK.md`
+
+Typical workflow:
+
+```bash
+cd setup/salesforce
+make help
+make full-refresh TARGET_ORG=dev-org
+make analyze-year1 TARGET_ORG=dev-org START_DATE=2024-04-16 END_DATE=2025-04-16
+```
+
+Requirements for Salesforce workflow:
+
+- Salesforce CLI (`sf`)
+- Authenticated org alias (default expected by scripts: `dev-org`)
 
 ## Development
 
