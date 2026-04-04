@@ -17,16 +17,16 @@ help:
 	@echo "  make full-refresh TARGET_ORG=dev-org  - Purge, generate, enrich, load"
 
 purge:
-	uv run python scripts/purge_sales_data.py --target-org $(TARGET_ORG) --yes
+	uv run --project . python scripts/purge_sales_data.py --target-org $(TARGET_ORG) --yes
 
 generate:
-	uv run snowfakery recipes/sales_pipeline.yml --output-format csv --output-folder data
+	uv run --project . snowfakery recipes/sales_pipeline.yml --output-format csv --output-folder data
 
 enrich:
-	uv run python scripts/enrich_sales_pipeline_csv.py
+	uv run --project . python scripts/enrich_sales_pipeline_csv.py
 
 load:
-	uv run python scripts/load_sales_pipeline.py
+	uv run --project . python scripts/load_sales_pipeline.py
 
 analyze-year1:
 	sf data query --target-org $(TARGET_ORG) --query "SELECT StageName, COUNT(Id) opps, SUM(Amount) totalAmount, AVG(Probability) avgProbability FROM Opportunity WHERE CloseDate >= $(START_DATE) AND CloseDate < $(END_DATE) GROUP BY StageName ORDER BY SUM(Amount) DESC"

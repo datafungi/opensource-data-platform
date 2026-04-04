@@ -11,11 +11,8 @@ services:
     environment:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
-    deploy:
-      resources:
-        limits:
-          cpus: "0.5"
-          memory: 512M
+    cpus: "0.15"
+    mem_limit: 768M
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
       interval: 15s

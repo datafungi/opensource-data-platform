@@ -5,6 +5,8 @@ build/
 dist/
 wheels/
 *.egg-info
+.pytest_cache
+.ropeproject
 
 # Virtual environments
 .venv
@@ -19,3 +21,14 @@ logs/
 # AI agents
 .claude
 CLAUDE.md
+
+# Jetbrains
+.idea
+
+# Docker volumes
+docker/clickhouse/single-node/data
+docker/clickhouse/single-node/logs
+docker/airflow/logs
+
+# External checkout
+docker/clickhouse/clickstack/

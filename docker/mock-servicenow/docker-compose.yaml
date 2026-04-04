@@ -14,11 +14,8 @@ services:
       MOCK_SN_TOTAL_RECORDS: ${MOCK_SN_TOTAL_RECORDS}
       MOCK_SN_SEED: ${MOCK_SN_SEED}
       MOCK_SN_DB_PATH: /data/mock_servicenow.duckdb
-    deploy:
-      resources:
-        limits:
-          cpus: "1.0"
-          memory: 2G
+    cpus: "0.35"
+    mem_limit: 2G
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 30s
