@@ -81,6 +81,7 @@
 # ----------------------------
 # HR Employees — 9 blocks (3 locations x 3 tiers) = 150 total
 # Department distribution target: PS=40%, ENG=25%, SALES=15%, HR=10%, FIN=10%
+# employee_id uses this.id (Snowfakery auto-increment) so random_reference in events resolves correctly
 # ----------------------------
 
 # SG Junior (20 employees)
@@ -88,6 +89,7 @@
   nickname: SG_Junior
   count: 20
   fields:
+    employee_id: ${{this.id}}
     first_name:
       fake: first_name
     last_name:
@@ -126,6 +128,7 @@
   nickname: SG_Mid
   count: 25
   fields:
+    employee_id: ${{this.id}}
     first_name:
       fake: first_name
     last_name:
@@ -165,6 +168,7 @@
   nickname: SG_Senior
   count: 15
   fields:
+    employee_id: ${{this.id}}
     first_name:
       fake: first_name
     last_name:
@@ -204,6 +208,7 @@
   nickname: VN_Junior
   count: 18
   fields:
+    employee_id: ${{this.id}}
     first_name:
       fake: first_name
     last_name:
@@ -242,6 +247,7 @@
   nickname: VN_Mid
   count: 20
   fields:
+    employee_id: ${{this.id}}
     first_name:
       fake: first_name
     last_name:
@@ -281,6 +287,7 @@
   nickname: VN_Senior
   count: 12
   fields:
+    employee_id: ${{this.id}}
     first_name:
       fake: first_name
     last_name:
@@ -320,6 +327,7 @@
   nickname: ID_Junior
   count: 14
   fields:
+    employee_id: ${{this.id}}
     first_name:
       fake: first_name
     last_name:
@@ -358,6 +366,7 @@
   nickname: ID_Mid
   count: 16
   fields:
+    employee_id: ${{this.id}}
     first_name:
       fake: first_name
     last_name:
@@ -397,6 +406,7 @@
   nickname: ID_Senior
   count: 10
   fields:
+    employee_id: ${{this.id}}
     first_name:
       fake: first_name
     last_name:
@@ -441,7 +451,7 @@
 - object: hr_employee_events
   count: 20
   fields:
-    event_id: ${{object_name + "-" + str(child_index)}}
+    event_id: ${{fake.uuid4()}}
     employee_id:
       random_reference: SG_Junior
     event_type: Hire
@@ -463,7 +473,7 @@
 - object: hr_employee_events
   count: 25
   fields:
-    event_id: ${{object_name + "-" + str(child_index)}}
+    event_id: ${{fake.uuid4()}}
     employee_id:
       random_reference: SG_Mid
     event_type: Hire
@@ -486,7 +496,7 @@
 - object: hr_employee_events
   count: 15
   fields:
-    event_id: ${{object_name + "-" + str(child_index)}}
+    event_id: ${{fake.uuid4()}}
     employee_id:
       random_reference: SG_Senior
     event_type: Hire
@@ -509,7 +519,7 @@
 - object: hr_employee_events
   count: 18
   fields:
-    event_id: ${{object_name + "-" + str(child_index)}}
+    event_id: ${{fake.uuid4()}}
     employee_id:
       random_reference: VN_Junior
     event_type: Hire
@@ -531,7 +541,7 @@
 - object: hr_employee_events
   count: 20
   fields:
-    event_id: ${{object_name + "-" + str(child_index)}}
+    event_id: ${{fake.uuid4()}}
     employee_id:
       random_reference: VN_Mid
     event_type: Hire
@@ -554,7 +564,7 @@
 - object: hr_employee_events
   count: 12
   fields:
-    event_id: ${{object_name + "-" + str(child_index)}}
+    event_id: ${{fake.uuid4()}}
     employee_id:
       random_reference: VN_Senior
     event_type: Hire
@@ -577,7 +587,7 @@
 - object: hr_employee_events
   count: 14
   fields:
-    event_id: ${{object_name + "-" + str(child_index)}}
+    event_id: ${{fake.uuid4()}}
     employee_id:
       random_reference: ID_Junior
     event_type: Hire
@@ -599,7 +609,7 @@
 - object: hr_employee_events
   count: 16
   fields:
-    event_id: ${{object_name + "-" + str(child_index)}}
+    event_id: ${{fake.uuid4()}}
     employee_id:
       random_reference: ID_Mid
     event_type: Hire
@@ -622,7 +632,7 @@
 - object: hr_employee_events
   count: 10
   fields:
-    event_id: ${{object_name + "-" + str(child_index)}}
+    event_id: ${{fake.uuid4()}}
     employee_id:
       random_reference: ID_Senior
     event_type: Hire
