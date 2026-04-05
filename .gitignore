@@ -24,6 +24,9 @@ CLAUDE.md
 .gemini
 .planning
 
+# Snowfakery generated metadata
+csvw_metadata.json
+
 # Jetbrains
 .idea
 

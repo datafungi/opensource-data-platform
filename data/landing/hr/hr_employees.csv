@@ -1,0 +1,151 @@
+employee_id,first_name,last_name,email,job_title,department_id,location_id,hire_date,current_salary,salary_currency,is_active
+1,Kristine,Weaver,Kr+Weaver2014@example.net,Junior Data Engineer,DEPT-PS,LOC-SG,2026-03-04,5528,SGD,true
+2,Max,Sheppard,Max.Sheppard@example.org,Consultant,DEPT-PS,LOC-SG,2024-01-25,7288,SGD,true
+3,Tanya,Welch,Ta-Welch2@example.org,Junior Data Engineer,DEPT-ENG,LOC-SG,2025-10-19,4747,SGD,true
+4,Howard,Warner,H-Warner12@example.com,Analyst,DEPT-HR,LOC-SG,2024-08-22,8726,SGD,true
+5,Steven,Richardson,S_Richardson12@example.net,Junior Analyst,DEPT-HR,LOC-SG,2023-07-13,4152,SGD,true
+6,Valerie,Hale,Va_Hale4@example.org,Junior Data Engineer,DEPT-PS,LOC-SG,2025-01-03,5901,SGD,true
+7,Tom,Smith,T_Smith@example.net,Developer,DEPT-PS,LOC-SG,2023-07-14,6304,SGD,true
+8,Nichole,Abbott,Nichole_Abbott@example.org,Junior Consultant,DEPT-FIN,LOC-SG,2026-03-04,5210,SGD,true
+9,Vanessa,Chan,Va+Chan75@example.org,Developer,DEPT-PS,LOC-SG,2024-09-03,7627,SGD,true
+10,Kathryn,Bonilla,Kathryn_Bonilla1962@example.net,Analyst,DEPT-HR,LOC-SG,2023-02-10,7009,SGD,false
+11,Patricia,Arellano,P-Arellano@example.net,Junior Developer,DEPT-PS,LOC-SG,2023-05-19,4603,SGD,true
+12,Aaron,Beltran,AaBeltran2013@example.net,Junior Analyst,DEPT-ENG,LOC-SG,2024-08-27,5645,SGD,true
+13,Cassidy,Vaughan,C+Vaughan94@example.org,Analyst,DEPT-PS,LOC-SG,2023-01-20,8695,SGD,true
+14,Kevin,Roman,K-Roman1949@example.net,Junior Analyst,DEPT-HR,LOC-SG,2024-10-18,4434,SGD,true
+15,Victor,Jones,Vi-Jones1971@example.net,Junior Consultant,DEPT-PS,LOC-SG,2024-01-08,5544,SGD,true
+16,Kyle,Cox,Kyle.Cox95@example.org,Junior Consultant,DEPT-PS,LOC-SG,2025-05-31,5725,SGD,true
+17,Brandy,Huerta,BrHuerta70@example.net,Junior Analyst,DEPT-PS,LOC-SG,2024-04-07,4136,SGD,false
+18,Damon,Gibson,DamonGibson6@example.net,Junior Data Engineer,DEPT-FIN,LOC-SG,2024-05-20,5419,SGD,true
+19,Mandy,Hernandez,Mandy.Hernandez68@example.com,Junior Developer,DEPT-PS,LOC-SG,2026-02-05,5812,SGD,true
+20,John,Ross,JohnRoss@example.net,Junior Consultant,DEPT-ENG,LOC-SG,2025-01-19,5020,SGD,true
+21,Leslie,Frank,Le+Frank@example.com,Account Manager,DEPT-ENG,LOC-SG,2024-10-02,7176,SGD,true
+22,Belinda,Bullock,Belinda-Bullock1998@example.net,Senior Consultant,DEPT-PS,LOC-SG,2024-03-23,7594,SGD,true
+23,Jesus,Salazar,Jesus_Salazar0@example.net,Senior Consultant,DEPT-ENG,LOC-SG,2025-07-19,8795,SGD,true
+24,Martin,Payne,MaPayne50@example.net,Software Engineer,DEPT-PS,LOC-SG,2024-05-05,7539,SGD,true
+25,Bridget,Meyer,BrMeyer1999@example.net,Account Manager,DEPT-ENG,LOC-SG,2024-02-10,8986,SGD,true
+26,Wayne,Adams,WAdams1@example.org,Data Engineer,DEPT-PS,LOC-SG,2023-12-31,7830,SGD,true
+27,Phillip,Warner,Ph_Warner@example.org,Data Engineer,DEPT-PS,LOC-SG,2023-04-28,7903,SGD,true
+28,Geoffrey,Bass,Geoffrey.Bass1962@example.org,Senior Consultant,DEPT-HR,LOC-SG,2025-05-27,6234,SGD,true
+29,Jade,Crane,Jade_Crane@example.com,Senior Consultant,DEPT-HR,LOC-SG,2024-10-08,8338,SGD,true
+30,Wanda,Berry,Wa+Berry47@example.net,Senior Software Engineer,DEPT-SALES,LOC-SG,2023-05-30,14616,SGD,false
+31,Bonnie,Delgado,Bonnie-Delgado1966@example.net,Senior Software Engineer,DEPT-PS,LOC-SG,2024-02-02,13393,SGD,true
+32,Madeline,Hubbard,Ma+Hubbard@example.net,Senior Data Engineer,DEPT-HR,LOC-SG,2023-07-25,11792,SGD,true
+33,April,Gillespie,AprilGillespie73@example.org,Data Engineer,DEPT-FIN,LOC-SG,2025-08-05,6855,SGD,true
+34,Adrienne,Zamora,A-Zamora1961@example.net,Data Engineer,DEPT-PS,LOC-SG,2025-07-18,7624,SGD,true
+35,Ross,Hart,R.Hart@example.net,Senior Consultant,DEPT-FIN,LOC-SG,2025-02-16,7333,SGD,true
+36,Clayton,Morris,Cl.Morris@example.com,Business Analyst,DEPT-PS,LOC-SG,2025-08-18,8555,SGD,true
+37,Dominic,Gomez,Do.Gomez1959@example.com,Senior Software Engineer,DEPT-ENG,LOC-SG,2023-08-29,12166,SGD,true
+38,Tara,Stone,TStone@example.net,Senior Business Analyst,DEPT-PS,LOC-SG,2023-10-05,10082,SGD,true
+39,Zoe,Hahn,Zoe+Hahn99@example.com,Senior Account Manager,DEPT-PS,LOC-SG,2024-03-02,12680,SGD,true
+40,Annette,Pineda,An-Pineda@example.com,Senior Business Analyst,DEPT-SALES,LOC-SG,2023-10-21,10658,SGD,true
+41,Mindy,Steele,Mindy+Steele69@example.net,Data Engineer,DEPT-PS,LOC-SG,2023-10-16,8594,SGD,true
+42,Kelli,Lutz,KLutz@example.org,Account Manager,DEPT-ENG,LOC-SG,2026-03-01,7944,SGD,true
+43,Monique,Nicholson,Monique+Nicholson1946@example.com,Data Engineer,DEPT-PS,LOC-SG,2025-03-31,7243,SGD,false
+44,Johnathan,Abbott,J+Abbott@example.org,Software Engineer,DEPT-PS,LOC-SG,2024-11-06,8694,SGD,true
+45,Devon,Baird,De+Baird4@example.net,Data Engineer,DEPT-SALES,LOC-SG,2025-10-13,7818,SGD,true
+46,Jon,Branch,Jo_Branch@example.net,Principal Consultant,DEPT-PS,LOC-SG,2023-02-19,10269,SGD,true
+47,Brady,Torres,B_Torres02@example.net,Engineering Lead,DEPT-HR,LOC-SG,2024-07-30,10636,SGD,true
+48,Elizabeth,Carlson,Elizabeth.Carlson1990@example.org,Engineering Lead,DEPT-SALES,LOC-SG,2026-01-16,13625,SGD,true
+49,Brian,Reese,B+Reese69@example.org,Lead Analyst,DEPT-HR,LOC-SG,2025-01-12,11452,SGD,true
+50,Arthur,Douglas,A-Douglas2000@example.org,Engineering Lead,DEPT-SALES,LOC-SG,2023-07-24,13375,SGD,true
+51,Andrew,Richard,A.Richard61@example.net,Principal Consultant,DEPT-ENG,LOC-SG,2024-02-08,12136,SGD,true
+52,Carrie,Hester,Ca-Hester55@example.org,Sales Director,DEPT-ENG,LOC-SG,2025-12-10,13574,SGD,true
+53,Melissa,Holden,Melissa_Holden2007@example.net,Engineering Lead,DEPT-PS,LOC-SG,2024-05-05,9713,SGD,true
+54,Sherry,Moses,S_Moses3@example.com,Lead Analyst,DEPT-SALES,LOC-SG,2024-04-18,11560,SGD,false
+55,Paige,Rich,PaigeRich2006@example.net,Lead Analyst,DEPT-PS,LOC-SG,2024-01-06,11950,SGD,true
+56,Jaclyn,Jimenez,Jaclyn_Jimenez3@example.net,Lead Analyst,DEPT-PS,LOC-SG,2023-08-31,9037,SGD,true
+57,Dana,Rhodes,DanaRhodes9@example.com,Lead Analyst,DEPT-PS,LOC-SG,2025-04-19,14196,SGD,true
+58,Emma,Lowe,Em_Lowe52@example.org,Lead Analyst,DEPT-ENG,LOC-SG,2023-06-05,13350,SGD,true
+59,Rose,Mcdowell,R_Mcdowell88@example.net,Sales Director,DEPT-SALES,LOC-SG,2023-01-29,12715,SGD,true
+60,Hannah,Cherry,Ha.Cherry58@example.net,Sales Director,DEPT-ENG,LOC-SG,2025-03-18,14270,SGD,true
+61,Jade,Horton,JHorton3@example.com,Junior Consultant,DEPT-PS,LOC-VN,2023-12-14,22668920,VND,true
+62,Justin,Moore,Justin+Moore4@example.net,Consultant,DEPT-PS,LOC-VN,2024-08-02,30712280,VND,true
+63,Alexis,Nicholson,A+Nicholson1978@example.org,Junior Data Engineer,DEPT-SALES,LOC-VN,2025-01-08,23142510,VND,true
+64,Allison,Miles,Allison.Miles@example.com,Junior Developer,DEPT-ENG,LOC-VN,2025-03-05,20217426,VND,true
+65,Sierra,Cardenas,Si.Cardenas58@example.org,Junior Consultant,DEPT-FIN,LOC-VN,2025-02-23,24561979,VND,false
+66,Brad,Gould,B.Gould@example.com,Analyst,DEPT-SALES,LOC-VN,2024-02-11,29175885,VND,true
+67,Chelsea,Parks,Chelsea.Parks9@example.net,Junior Developer,DEPT-SALES,LOC-VN,2025-02-20,21648013,VND,true
+68,Malik,Daugherty,M+Daugherty1961@example.org,Junior Analyst,DEPT-ENG,LOC-VN,2024-06-30,22784924,VND,false
+69,Albert,Cook,ACook@example.com,Junior Analyst,DEPT-ENG,LOC-VN,2024-01-21,19882186,VND,true
+70,Madeline,Campbell,Ma-Campbell1987@example.com,Junior Developer,DEPT-FIN,LOC-VN,2023-09-21,18830233,VND,true
+71,Makayla,Bray,Ma.Bray1978@example.net,Junior Consultant,DEPT-PS,LOC-VN,2024-12-18,24107704,VND,true
+72,Rhonda,Peterson,Rh-Peterson1963@example.org,Junior Analyst,DEPT-PS,LOC-VN,2026-02-02,18747678,VND,true
+73,Edgar,Andrade,EdgarAndrade7@example.org,Junior Data Engineer,DEPT-HR,LOC-VN,2025-01-20,16329764,VND,false
+74,Marcia,Moore,Marcia+Moore@example.net,Junior Analyst,DEPT-PS,LOC-VN,2025-12-14,19946990,VND,true
+75,Cristina,King,C.King1953@example.com,Junior Data Engineer,DEPT-PS,LOC-VN,2026-01-21,20600021,VND,true
+76,Randall,Bush,Randall-Bush5@example.org,Junior Consultant,DEPT-PS,LOC-VN,2023-09-13,19178718,VND,true
+77,Cassidy,Short,C-Short1955@example.com,Junior Data Engineer,DEPT-FIN,LOC-VN,2023-09-15,20361496,VND,true
+78,Rose,Lucas,R.Lucas1979@example.com,Junior Developer,DEPT-SALES,LOC-VN,2024-01-07,24405720,VND,false
+79,Colleen,Nolan,C_Nolan@example.com,Senior Consultant,DEPT-PS,LOC-VN,2024-02-18,30561784,VND,true
+80,Leslie,Baldwin,LeslieBaldwin1992@example.com,Business Analyst,DEPT-PS,LOC-VN,2025-06-23,28674735,VND,true
+81,Zoe,Reyes,Zoe+Reyes6@example.net,Senior Account Manager,DEPT-PS,LOC-VN,2024-02-27,64174645,VND,true
+82,Leonard,Richmond,Le-Richmond@example.com,Software Engineer,DEPT-ENG,LOC-VN,2025-06-20,25858880,VND,true
+83,Diana,Mckee,Di.Mckee0@example.net,Software Engineer,DEPT-ENG,LOC-VN,2024-05-04,38338061,VND,true
+84,Sue,Lawson,Su-Lawson1950@example.com,Senior Software Engineer,DEPT-FIN,LOC-VN,2024-06-02,43486279,VND,true
+85,Anita,Reynolds,A-Reynolds4@example.org,Senior Account Manager,DEPT-PS,LOC-VN,2023-04-03,61047178,VND,true
+86,Reginald,Wyatt,RWyatt1958@example.com,Senior Consultant,DEPT-PS,LOC-VN,2025-04-08,26851719,VND,true
+87,Mark,Burke,M+Burke3@example.org,Business Analyst,DEPT-PS,LOC-VN,2023-06-30,36268561,VND,true
+88,Clayton,Mckinney,Cl+Mckinney1985@example.net,Software Engineer,DEPT-ENG,LOC-VN,2025-01-01,39071056,VND,false
+89,Evelyn,Choi,E_Choi88@example.com,Senior Data Engineer,DEPT-PS,LOC-VN,2024-03-29,62683013,VND,true
+90,Don,Munoz,Don_Munoz5@example.com,Data Engineer,DEPT-PS,LOC-VN,2025-04-27,32990322,VND,true
+91,Joshua,Mendoza,JMendoza62@example.com,Software Engineer,DEPT-HR,LOC-VN,2023-03-31,32588511,VND,true
+92,Carolyn,Benjamin,CBenjamin@example.org,Data Engineer,DEPT-PS,LOC-VN,2025-02-22,25471298,VND,true
+93,Robin,Fuller,RFuller50@example.org,Senior Consultant,DEPT-ENG,LOC-VN,2024-10-06,39151491,VND,true
+94,Kimberly,Washington,Ki_Washington1952@example.org,Software Engineer,DEPT-PS,LOC-VN,2023-11-22,39837029,VND,true
+95,Michelle,Hubbard,Michelle.Hubbard72@example.org,Account Manager,DEPT-PS,LOC-VN,2026-01-26,30129261,VND,true
+96,Devon,Franklin,Devon+Franklin84@example.net,Senior Software Engineer,DEPT-PS,LOC-VN,2023-08-10,45548146,VND,true
+97,Brittney,Bentley,Br.Bentley@example.org,Senior Consultant,DEPT-SALES,LOC-VN,2023-10-18,26932625,VND,true
+98,Luke,Wall,Lu_Wall98@example.org,Account Manager,DEPT-PS,LOC-VN,2024-07-05,29607501,VND,true
+99,Stefanie,Mooney,St_Mooney@example.com,Principal Consultant,DEPT-PS,LOC-VN,2024-11-22,68838888,VND,true
+100,Katherine,Hayes,KHayes2@example.net,Senior Data Engineer,DEPT-PS,LOC-VN,2025-11-24,47523162,VND,true
+101,Meredith,Griffith,M.Griffith@example.org,Principal Consultant,DEPT-ENG,LOC-VN,2024-02-28,41431796,VND,true
+102,Renee,Baird,Re-Baird1960@example.com,Senior Data Engineer,DEPT-PS,LOC-VN,2024-03-01,57481763,VND,true
+103,Tyrone,Rosales,TyroneRosales68@example.com,Principal Consultant,DEPT-PS,LOC-VN,2023-06-23,50910500,VND,true
+104,Maurice,Lyons,M-Lyons73@example.org,Senior Data Engineer,DEPT-PS,LOC-VN,2023-05-11,45835061,VND,true
+105,Aaron,Hobbs,Aaron-Hobbs@example.net,Engineering Lead,DEPT-PS,LOC-VN,2024-06-03,41112373,VND,true
+106,Gloria,Mullen,Gl-Mullen94@example.net,Lead Analyst,DEPT-ENG,LOC-VN,2025-08-24,51721047,VND,true
+107,Ellen,Hickman,EllenHickman1947@example.com,Senior Data Engineer,DEPT-PS,LOC-VN,2024-03-10,51005970,VND,false
+108,Earl,Koch,Ea+Koch1973@example.net,Principal Consultant,DEPT-ENG,LOC-VN,2023-11-24,69527118,VND,true
+109,Herbert,Mclean,H-Mclean8@example.com,Lead Analyst,DEPT-PS,LOC-VN,2023-08-31,44706990,VND,true
+110,Loretta,Baldwin,LorettaBaldwin@example.org,Sales Director,DEPT-SALES,LOC-VN,2025-06-03,45497737,VND,true
+111,Willie,Villa,Wi.Villa@example.com,Junior Consultant,DEPT-PS,LOC-ID,2025-08-08,8305802,IDR,true
+112,Jasmine,Terry,J_Terry1977@example.net,Junior Analyst,DEPT-PS,LOC-ID,2025-12-24,13836874,IDR,true
+113,Maria,Cummings,Ma-Cummings2009@example.com,Junior Consultant,DEPT-HR,LOC-ID,2023-10-12,10917256,IDR,true
+114,Max,Dominguez,MaDominguez2008@example.net,Junior Data Engineer,DEPT-ENG,LOC-ID,2025-02-20,11511531,IDR,true
+115,Norma,Fowler,NormaFowler59@example.com,Junior Consultant,DEPT-PS,LOC-ID,2025-02-21,11774321,IDR,true
+116,Victoria,Rodriguez,Vi+Rodriguez2001@example.net,Junior Data Engineer,DEPT-PS,LOC-ID,2024-07-03,12606924,IDR,true
+117,Carmen,Branch,C-Branch@example.com,Junior Developer,DEPT-FIN,LOC-ID,2025-05-29,9480272,IDR,true
+118,Maurice,Kim,Maurice_Kim2@example.com,Junior Analyst,DEPT-SALES,LOC-ID,2025-02-22,8305407,IDR,true
+119,Ariel,Frank,A_Frank5@example.org,Data Engineer,DEPT-SALES,LOC-ID,2023-03-03,18391918,IDR,false
+120,Nina,Arellano,Ni.Arellano67@example.net,Junior Developer,DEPT-SALES,LOC-ID,2024-08-16,9119535,IDR,true
+121,Timothy,Marks,Timothy+Marks9@example.org,Junior Developer,DEPT-FIN,LOC-ID,2024-07-16,10767017,IDR,true
+122,Maria,Austin,MAustin@example.org,Junior Analyst,DEPT-ENG,LOC-ID,2025-07-07,8870467,IDR,false
+123,Franklin,Day,Fr+Day74@example.net,Junior Consultant,DEPT-ENG,LOC-ID,2023-02-27,10762760,IDR,true
+124,Devon,Harrison,D-Harrison5@example.com,Consultant,DEPT-HR,LOC-ID,2024-05-14,19279867,IDR,true
+125,James,Calderon,JCalderon@example.org,Account Manager,DEPT-PS,LOC-ID,2025-08-22,21141020,IDR,true
+126,Russell,Boyer,Russell-Boyer@example.org,Data Engineer,DEPT-ENG,LOC-ID,2023-04-13,17706767,IDR,true
+127,Alan,Winters,A+Winters@example.net,Data Engineer,DEPT-FIN,LOC-ID,2025-12-05,17404698,IDR,true
+128,Colton,Bradshaw,C_Bradshaw5@example.com,Senior Data Engineer,DEPT-PS,LOC-ID,2023-08-19,30065561,IDR,true
+129,Stephanie,Lowe,Stephanie-Lowe@example.com,Senior Consultant,DEPT-SALES,LOC-ID,2025-12-03,16489922,IDR,true
+130,Collin,Woodward,C.Woodward1@example.org,Senior Data Engineer,DEPT-FIN,LOC-ID,2023-03-18,35393718,IDR,true
+131,Lorraine,Rosario,Lorraine.Rosario@example.com,Data Engineer,DEPT-SALES,LOC-ID,2025-12-10,14187469,IDR,true
+132,Katherine,Barker,K-Barker4@example.com,Business Analyst,DEPT-PS,LOC-ID,2025-07-29,14275627,IDR,true
+133,Zachary,Kidd,ZKidd61@example.org,Senior Business Analyst,DEPT-HR,LOC-ID,2024-05-28,37236877,IDR,true
+134,Shane,Harper,Shane_Harper6@example.net,Software Engineer,DEPT-PS,LOC-ID,2024-01-03,19155472,IDR,true
+135,Gary,Moody,Gary_Moody0@example.net,Senior Account Manager,DEPT-HR,LOC-ID,2024-09-04,30788899,IDR,true
+136,Denise,Graves,De_Graves1958@example.org,Senior Data Engineer,DEPT-PS,LOC-ID,2023-01-17,28171172,IDR,true
+137,Rachel,Cooke,RCooke2@example.net,Software Engineer,DEPT-PS,LOC-ID,2023-11-07,14322321,IDR,true
+138,Bianca,Wise,B_Wise09@example.org,Business Analyst,DEPT-PS,LOC-ID,2024-03-13,16201700,IDR,true
+139,Ross,Roman,Ro_Roman@example.net,Data Engineer,DEPT-ENG,LOC-ID,2024-07-21,18772410,IDR,true
+140,Glenn,Schroeder,Gl_Schroeder2014@example.com,Software Engineer,DEPT-ENG,LOC-ID,2025-01-10,16302869,IDR,true
+141,Mario,Gonzales,Ma.Gonzales7@example.org,Lead Analyst,DEPT-HR,LOC-ID,2025-07-11,35720593,IDR,true
+142,Harry,Mcknight,HaMcknight@example.net,Sales Director,DEPT-PS,LOC-ID,2025-07-28,23182373,IDR,true
+143,Mikayla,Hood,M-Hood94@example.org,Sales Director,DEPT-PS,LOC-ID,2024-03-24,30965715,IDR,true
+144,Carla,Hill,Ca.Hill14@example.com,Senior Data Engineer,DEPT-ENG,LOC-ID,2024-01-05,34176885,IDR,true
+145,Jonathon,Avery,Jo_Avery74@example.net,Engineering Lead,DEPT-PS,LOC-ID,2024-12-19,24052431,IDR,true
+146,Lawrence,Hatfield,La+Hatfield93@example.com,Sales Director,DEPT-ENG,LOC-ID,2025-05-11,36705300,IDR,true
+147,Edgar,Madden,Edgar+Madden60@example.net,Engineering Lead,DEPT-FIN,LOC-ID,2023-02-14,32629792,IDR,true
+148,James,Blake,James.Blake1983@example.org,Sales Director,DEPT-PS,LOC-ID,2023-11-19,33746444,IDR,false
+149,Brandy,Villegas,B-Villegas@example.org,Principal Consultant,DEPT-ENG,LOC-ID,2023-06-29,31308718,IDR,true
+150,Grant,Travis,GTravis@example.com,Principal Consultant,DEPT-PS,LOC-ID,2024-04-23,29401514,IDR,true
