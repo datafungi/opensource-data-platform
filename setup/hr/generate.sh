@@ -3,7 +3,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
-VENV_PATH="${PROJECT_ROOT}/setup/salesforce/.venv"
+VENV_PATH="${PROJECT_ROOT}/setup/.venv"
 RECIPE_DIR="${SCRIPT_DIR}"
 OUTPUT_DIR="${SCRIPT_DIR}/data"
 
@@ -26,6 +26,7 @@ snowfakery recipes/hr_generation.yml \
 # Run post-processing event script (uses DATA_DIR derived from script location)
 cd "${PROJECT_ROOT}"
 python setup/hr/scripts/generate_events.py
+python setup/hr/scripts/enrich_hierarchy.py
 
 echo ""
 echo "=== Output files ==="
