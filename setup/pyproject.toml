@@ -1,0 +1,12 @@
+[project]
+name = "synthetic-data-setup"
+version = "0.1.0"
+description = "Local-only dependencies for synthetic data generation and load scripts"
+requires-python = ">=3.12"
+dependencies = [
+    "snowfakery==4.2.1",
+    "setuptools==79.0.1",
+    "python-dotenv>=1.0.1",
+    "simple-salesforce>=1.12.9",
+    "duckdb>=1.5.1",
+]
