@@ -21,6 +21,8 @@ logs/
 # AI agents
 .claude
 CLAUDE.md
+.gemini
+.planning
 
 # Jetbrains
 .idea
