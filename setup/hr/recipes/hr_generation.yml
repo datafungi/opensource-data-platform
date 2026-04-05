@@ -1,0 +1,588 @@
+# ----------------------------
+# HR Locations (3 static records)
+# ----------------------------
+
+- object: hr_locations
+  nickname: LocSG
+  count: 1
+  fields:
+    location_id: LOC-SG
+    city: Singapore
+    country: Singapore
+    currency: SGD
+    timezone: Asia/Singapore
+
+- object: hr_locations
+  nickname: LocVN
+  count: 1
+  fields:
+    location_id: LOC-VN
+    city: Ho Chi Minh City
+    country: Vietnam
+    currency: VND
+    timezone: Asia/Ho_Chi_Minh
+
+- object: hr_locations
+  nickname: LocID
+  count: 1
+  fields:
+    location_id: LOC-ID
+    city: Jakarta
+    country: Indonesia
+    currency: IDR
+    timezone: Asia/Jakarta
+
+
+# ----------------------------
+# HR Departments (5 static records)
+# ----------------------------
+
+- object: hr_departments
+  nickname: DeptPS
+  count: 1
+  fields:
+    department_id: DEPT-PS
+    department_name: Professional Services
+    cost_center: CC-PS-001
+
+- object: hr_departments
+  nickname: DeptENG
+  count: 1
+  fields:
+    department_id: DEPT-ENG
+    department_name: Engineering
+    cost_center: CC-ENG-002
+
+- object: hr_departments
+  nickname: DeptSALES
+  count: 1
+  fields:
+    department_id: DEPT-SALES
+    department_name: Sales
+    cost_center: CC-SALES-003
+
+- object: hr_departments
+  nickname: DeptHR
+  count: 1
+  fields:
+    department_id: DEPT-HR
+    department_name: Human Resources
+    cost_center: CC-HR-004
+
+- object: hr_departments
+  nickname: DeptFIN
+  count: 1
+  fields:
+    department_id: DEPT-FIN
+    department_name: Finance
+    cost_center: CC-FIN-005
+
+
+# ----------------------------
+# HR Employees — 15 blocks (5 departments × 3 locations) = 150 total
+#
+# Job titles are department-specific. Salary is a placeholder; the
+# post-processing script (generate_events.py) recomputes salary from
+# the tier implied by job_title.
+#
+# Location targets: SG=60, VN=51, ID=39
+# Department targets: PS=60, ENG=38, SALES=23, HR=15, FIN=14
+# ----------------------------
+
+# ---- Professional Services — SG (24) ----
+- object: hr_employees
+  nickname: PS_SG
+  count: 24
+  fields:
+    employee_id: ${{this.id}}
+    first_name:
+      fake: first_name
+    last_name:
+      fake: last_name
+    email:
+      fake: email
+    job_title:
+      random_choice:
+        - Junior Consultant
+        - Junior Consultant
+        - Junior Business Analyst
+        - Consultant
+        - Consultant
+        - Business Analyst
+        - Data Analyst
+        - Senior Consultant
+        - Principal Consultant
+        - Delivery Lead
+    department_id: DEPT-PS
+    location_id: LOC-SG
+    hire_date: ${{fake.date_between(start_date='-39M', end_date='-1M')}}
+    current_salary:
+      random_number:
+        min: 4000
+        max: 15000
+    salary_currency: SGD
+    is_active: true
+
+# ---- Professional Services — VN (20) ----
+- object: hr_employees
+  nickname: PS_VN
+  count: 20
+  fields:
+    employee_id: ${{this.id}}
+    first_name:
+      fake: first_name
+    last_name:
+      fake: last_name
+    email:
+      fake: email
+    job_title:
+      random_choice:
+        - Junior Consultant
+        - Junior Consultant
+        - Junior Business Analyst
+        - Consultant
+        - Consultant
+        - Business Analyst
+        - Data Analyst
+        - Senior Consultant
+        - Principal Consultant
+        - Delivery Lead
+    department_id: DEPT-PS
+    location_id: LOC-VN
+    hire_date: ${{fake.date_between(start_date='-39M', end_date='-1M')}}
+    current_salary:
+      random_number:
+        min: 15000000
+        max: 70000000
+    salary_currency: VND
+    is_active: true
+
+# ---- Professional Services — ID (16) ----
+- object: hr_employees
+  nickname: PS_ID
+  count: 16
+  fields:
+    employee_id: ${{this.id}}
+    first_name:
+      fake: first_name
+    last_name:
+      fake: last_name
+    email:
+      fake: email
+    job_title:
+      random_choice:
+        - Junior Consultant
+        - Junior Consultant
+        - Junior Business Analyst
+        - Consultant
+        - Consultant
+        - Business Analyst
+        - Data Analyst
+        - Senior Consultant
+        - Principal Consultant
+        - Delivery Lead
+    department_id: DEPT-PS
+    location_id: LOC-ID
+    hire_date: ${{fake.date_between(start_date='-39M', end_date='-1M')}}
+    current_salary:
+      random_number:
+        min: 8000000
+        max: 40000000
+    salary_currency: IDR
+    is_active: true
+
+# ---- Engineering — SG (15) ----
+- object: hr_employees
+  nickname: ENG_SG
+  count: 15
+  fields:
+    employee_id: ${{this.id}}
+    first_name:
+      fake: first_name
+    last_name:
+      fake: last_name
+    email:
+      fake: email
+    job_title:
+      random_choice:
+        - Junior Software Engineer
+        - Junior Software Engineer
+        - Junior Data Engineer
+        - Software Engineer
+        - Software Engineer
+        - Data Engineer
+        - Backend Engineer
+        - Senior Software Engineer
+        - Senior Data Engineer
+        - Engineering Lead
+    department_id: DEPT-ENG
+    location_id: LOC-SG
+    hire_date: ${{fake.date_between(start_date='-39M', end_date='-1M')}}
+    current_salary:
+      random_number:
+        min: 4000
+        max: 15000
+    salary_currency: SGD
+    is_active: true
+
+# ---- Engineering — VN (13) ----
+- object: hr_employees
+  nickname: ENG_VN
+  count: 13
+  fields:
+    employee_id: ${{this.id}}
+    first_name:
+      fake: first_name
+    last_name:
+      fake: last_name
+    email:
+      fake: email
+    job_title:
+      random_choice:
+        - Junior Software Engineer
+        - Junior Software Engineer
+        - Junior Data Engineer
+        - Software Engineer
+        - Software Engineer
+        - Data Engineer
+        - Backend Engineer
+        - Senior Software Engineer
+        - Senior Data Engineer
+        - Engineering Lead
+    department_id: DEPT-ENG
+    location_id: LOC-VN
+    hire_date: ${{fake.date_between(start_date='-39M', end_date='-1M')}}
+    current_salary:
+      random_number:
+        min: 15000000
+        max: 70000000
+    salary_currency: VND
+    is_active: true
+
+# ---- Engineering — ID (10) ----
+- object: hr_employees
+  nickname: ENG_ID
+  count: 10
+  fields:
+    employee_id: ${{this.id}}
+    first_name:
+      fake: first_name
+    last_name:
+      fake: last_name
+    email:
+      fake: email
+    job_title:
+      random_choice:
+        - Junior Software Engineer
+        - Junior Software Engineer
+        - Junior Data Engineer
+        - Software Engineer
+        - Software Engineer
+        - Data Engineer
+        - Backend Engineer
+        - Senior Software Engineer
+        - Senior Data Engineer
+        - Engineering Lead
+    department_id: DEPT-ENG
+    location_id: LOC-ID
+    hire_date: ${{fake.date_between(start_date='-39M', end_date='-1M')}}
+    current_salary:
+      random_number:
+        min: 8000000
+        max: 40000000
+    salary_currency: IDR
+    is_active: true
+
+# ---- Sales — SG (9) ----
+- object: hr_employees
+  nickname: SALES_SG
+  count: 9
+  fields:
+    employee_id: ${{this.id}}
+    first_name:
+      fake: first_name
+    last_name:
+      fake: last_name
+    email:
+      fake: email
+    job_title:
+      random_choice:
+        - Junior Sales Representative
+        - Junior Account Executive
+        - Account Executive
+        - Account Manager
+        - Account Manager
+        - Business Development Manager
+        - Senior Account Manager
+        - Senior Account Executive
+        - Sales Director
+    department_id: DEPT-SALES
+    location_id: LOC-SG
+    hire_date: ${{fake.date_between(start_date='-39M', end_date='-1M')}}
+    current_salary:
+      random_number:
+        min: 4000
+        max: 15000
+    salary_currency: SGD
+    is_active: true
+
+# ---- Sales — VN (8) ----
+- object: hr_employees
+  nickname: SALES_VN
+  count: 8
+  fields:
+    employee_id: ${{this.id}}
+    first_name:
+      fake: first_name
+    last_name:
+      fake: last_name
+    email:
+      fake: email
+    job_title:
+      random_choice:
+        - Junior Sales Representative
+        - Junior Account Executive
+        - Account Executive
+        - Account Manager
+        - Account Manager
+        - Business Development Manager
+        - Senior Account Manager
+        - Senior Account Executive
+        - Sales Director
+    department_id: DEPT-SALES
+    location_id: LOC-VN
+    hire_date: ${{fake.date_between(start_date='-39M', end_date='-1M')}}
+    current_salary:
+      random_number:
+        min: 15000000
+        max: 70000000
+    salary_currency: VND
+    is_active: true
+
+# ---- Sales — ID (6) ----
+- object: hr_employees
+  nickname: SALES_ID
+  count: 6
+  fields:
+    employee_id: ${{this.id}}
+    first_name:
+      fake: first_name
+    last_name:
+      fake: last_name
+    email:
+      fake: email
+    job_title:
+      random_choice:
+        - Junior Sales Representative
+        - Junior Account Executive
+        - Account Executive
+        - Account Manager
+        - Account Manager
+        - Business Development Manager
+        - Senior Account Manager
+        - Senior Account Executive
+        - Sales Director
+    department_id: DEPT-SALES
+    location_id: LOC-ID
+    hire_date: ${{fake.date_between(start_date='-39M', end_date='-1M')}}
+    current_salary:
+      random_number:
+        min: 8000000
+        max: 40000000
+    salary_currency: IDR
+    is_active: true
+
+# ---- Human Resources — SG (6) ----
+- object: hr_employees
+  nickname: HR_SG
+  count: 6
+  fields:
+    employee_id: ${{this.id}}
+    first_name:
+      fake: first_name
+    last_name:
+      fake: last_name
+    email:
+      fake: email
+    job_title:
+      random_choice:
+        - Junior HR Coordinator
+        - Junior Talent Acquisition Coordinator
+        - HR Business Partner
+        - Talent Acquisition Specialist
+        - People Operations Analyst
+        - Senior HR Business Partner
+        - HR Director
+        - Head of Talent Acquisition
+    department_id: DEPT-HR
+    location_id: LOC-SG
+    hire_date: ${{fake.date_between(start_date='-39M', end_date='-1M')}}
+    current_salary:
+      random_number:
+        min: 4000
+        max: 15000
+    salary_currency: SGD
+    is_active: true
+
+# ---- Human Resources — VN (5) ----
+- object: hr_employees
+  nickname: HR_VN
+  count: 5
+  fields:
+    employee_id: ${{this.id}}
+    first_name:
+      fake: first_name
+    last_name:
+      fake: last_name
+    email:
+      fake: email
+    job_title:
+      random_choice:
+        - Junior HR Coordinator
+        - Junior Talent Acquisition Coordinator
+        - HR Business Partner
+        - Talent Acquisition Specialist
+        - People Operations Analyst
+        - Senior HR Business Partner
+        - HR Director
+        - Head of Talent Acquisition
+    department_id: DEPT-HR
+    location_id: LOC-VN
+    hire_date: ${{fake.date_between(start_date='-39M', end_date='-1M')}}
+    current_salary:
+      random_number:
+        min: 15000000
+        max: 70000000
+    salary_currency: VND
+    is_active: true
+
+# ---- Human Resources — ID (4) ----
+- object: hr_employees
+  nickname: HR_ID
+  count: 4
+  fields:
+    employee_id: ${{this.id}}
+    first_name:
+      fake: first_name
+    last_name:
+      fake: last_name
+    email:
+      fake: email
+    job_title:
+      random_choice:
+        - Junior HR Coordinator
+        - Junior Talent Acquisition Coordinator
+        - HR Business Partner
+        - Talent Acquisition Specialist
+        - People Operations Analyst
+        - Senior HR Business Partner
+        - HR Director
+        - Head of Talent Acquisition
+    department_id: DEPT-HR
+    location_id: LOC-ID
+    hire_date: ${{fake.date_between(start_date='-39M', end_date='-1M')}}
+    current_salary:
+      random_number:
+        min: 8000000
+        max: 40000000
+    salary_currency: IDR
+    is_active: true
+
+# ---- Finance — SG (6) ----
+- object: hr_employees
+  nickname: FIN_SG
+  count: 6
+  fields:
+    employee_id: ${{this.id}}
+    first_name:
+      fake: first_name
+    last_name:
+      fake: last_name
+    email:
+      fake: email
+    job_title:
+      random_choice:
+        - Junior Financial Analyst
+        - Junior Accountant
+        - Financial Analyst
+        - FP&A Analyst
+        - Accountant
+        - Management Accountant
+        - Senior Financial Analyst
+        - Finance Director
+        - Controller
+    department_id: DEPT-FIN
+    location_id: LOC-SG
+    hire_date: ${{fake.date_between(start_date='-39M', end_date='-1M')}}
+    current_salary:
+      random_number:
+        min: 4000
+        max: 15000
+    salary_currency: SGD
+    is_active: true
+
+# ---- Finance — VN (5) ----
+- object: hr_employees
+  nickname: FIN_VN
+  count: 5
+  fields:
+    employee_id: ${{this.id}}
+    first_name:
+      fake: first_name
+    last_name:
+      fake: last_name
+    email:
+      fake: email
+    job_title:
+      random_choice:
+        - Junior Financial Analyst
+        - Junior Accountant
+        - Financial Analyst
+        - FP&A Analyst
+        - Accountant
+        - Management Accountant
+        - Senior Financial Analyst
+        - Finance Director
+        - Controller
+    department_id: DEPT-FIN
+    location_id: LOC-VN
+    hire_date: ${{fake.date_between(start_date='-39M', end_date='-1M')}}
+    current_salary:
+      random_number:
+        min: 15000000
+        max: 70000000
+    salary_currency: VND
+    is_active: true
+
+# ---- Finance — ID (3) ----
+- object: hr_employees
+  nickname: FIN_ID
+  count: 3
+  fields:
+    employee_id: ${{this.id}}
+    first_name:
+      fake: first_name
+    last_name:
+      fake: last_name
+    email:
+      fake: email
+    job_title:
+      random_choice:
+        - Junior Financial Analyst
+        - Junior Accountant
+        - Financial Analyst
+        - FP&A Analyst
+        - Accountant
+        - Management Accountant
+        - Senior Financial Analyst
+        - Finance Director
+        - Controller
+    department_id: DEPT-FIN
+    location_id: LOC-ID
+    hire_date: ${{fake.date_between(start_date='-39M', end_date='-1M')}}
+    current_salary:
+      random_number:
+        min: 8000000
+        max: 40000000
+    salary_currency: IDR
+    is_active: true

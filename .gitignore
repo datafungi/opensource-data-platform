@@ -7,6 +7,7 @@ wheels/
 *.egg-info
 .pytest_cache
 .ropeproject
+.ruff_cache
 
 # Virtual environments
 .venv
@@ -21,6 +22,15 @@ logs/
 # AI agents
 .claude
 CLAUDE.md
+.gemini
+.planning
+
+# Snowfakery generated metadata
+csvw_metadata.json
+
+# HR generated data (re-generate with: bash setup/hr/generate.sh)
+setup/hr/data/*.csv
+data/landing/hr/*.csv
 
 # Jetbrains
 .idea
@@ -29,6 +39,10 @@ CLAUDE.md
 docker/clickhouse/single-node/data
 docker/clickhouse/single-node/logs
 docker/airflow/logs
+docker/minio/data
 
 # External checkout
 docker/clickhouse/clickstack/
+
+# Local files (root-level data/landing/ output directory)
+/data

@@ -5,6 +5,7 @@
   <label>Synthetic Data Loader</label>
 
   <fieldPermissions><editable>true</editable><field>Account.Customer_Segment__c</field><readable>true</readable></fieldPermissions>
+  <fieldPermissions><editable>true</editable><field>Account.Account_Owner_Employee_ID__c</field><readable>true</readable></fieldPermissions>
   <fieldPermissions><editable>true</editable><field>Account.Engagement_Model__c</field><readable>true</readable></fieldPermissions>
   <fieldPermissions><editable>true</editable><field>Account.Parent_Relationship_Type__c</field><readable>true</readable></fieldPermissions>
   <fieldPermissions><editable>true</editable><field>Account.Primary_Offering__c</field><readable>true</readable></fieldPermissions>

@@ -1,0 +1,36 @@
+project_id,opportunity_id,account_id,name,project_type,billing_model,budget,start_date,end_date,status,project_manager_id
+1,267,94,Empower Compelling Niches - US SaaS Closed,Hybrid Expansion,Subscription,250947.00,2024-10-29,2025-04-27,Completed,52
+2,268,93,Deploy Ubiquitous Bandwidth - US SaaS Closed,Hybrid Expansion,Subscription,274909.00,2024-04-16,2024-08-14,Completed,3
+3,270,94,Deploy Customized Infrastructures - US SaaS Closed,Hybrid Expansion,Subscription,141768.00,2025-05-21,2025-10-18,Completed,6
+4,272,99,Synthesize Out-Of-The-Box Bandwidth - US SaaS Closed,Hybrid Expansion,Retainer,181931.00,2025-02-06,2025-09-04,Completed,20
+5,273,97,Scale B2C Solutions - US SaaS Closed,Hybrid Expansion,Subscription,18472.00,2024-12-08,2025-02-06,Completed,24
+6,421,46,Expedite Holistic E-Services - Services Closed Won,Services New Logo,Time & Materials,1398703.00,2025-01-07,2025-11-03,Completed,33
+7,422,44,Whiteboard Clicks-And-Mortar E-Tailers - Services Closed Won,Services New Logo,Time & Materials,926168.00,2025-02-18,2025-10-16,Completed,37
+8,423,54,Exploit Next-Generation Channels - Services Closed Won,Services New Logo,Retainer,1312726.00,2026-02-02,2026-06-02,Active,44
+9,424,60,Strategize Customized Content - Services Closed Won,Services New Logo,Retainer,294737.00,2024-10-03,2025-04-01,Completed,45
+10,425,51,Enable Dot-Com Infrastructures - Services Closed Won,Services New Logo,Project-based,513496.00,2024-08-12,2024-12-10,Completed,58
+11,426,63,E-Enable Enterprise Synergies - Services Closed Won,Services New Logo,Time & Materials,399658.00,2025-03-25,2025-06-23,Completed,52
+12,427,65,Extend Web-Enabled E-Markets - Services Closed Won,Services New Logo,Retainer,1283738.00,2024-07-15,2025-04-11,Completed,3
+13,428,38,E-Enable Front-End Interfaces - Services Closed Won,Services New Logo,Project-based,493231.00,2026-01-21,2026-12-17,Active,6
+14,429,53,Engineer Out-Of-The-Box Bandwidth - Services Closed Won,Services New Logo,Time & Materials,808195.00,2026-02-10,2026-09-08,Active,20
+15,430,66,Syndicate Visionary Technologies - Services Closed Won,Services New Logo,Retainer,416489.00,2024-09-12,2025-09-07,Completed,24
+16,431,58,Architect Value-Added Methodologies - Services Closed Won,Services New Logo,Project-based,1189077.00,2025-07-21,2026-04-17,Active,33
+17,432,62,Optimize Frictionless Action-Items - Services Closed Won,Services New Logo,Project-based,1194998.00,2025-04-05,2025-10-02,Completed,37
+18,433,62,Orchestrate Sticky Portals - Services Closed Won,Services New Logo,Time & Materials,1070896.00,2026-02-09,2026-08-08,Active,44
+19,434,43,Facilitate Real-Time Info-Mediaries - Services Closed Won,Services New Logo,Retainer,322706.00,2025-05-25,2025-08-23,Completed,45
+20,435,47,Innovate Frictionless Architectures - Services Closed Won,Services New Logo,Retainer,1138035.00,2025-05-29,2026-05-24,Active,58
+21,436,46,Engage Cross-Media Synergies - Services Closed Won,Services New Logo,Retainer,336542.00,2024-08-31,2025-07-27,Completed,52
+22,437,60,Synergize Leading-Edge E-Services - Services Closed Won,Services New Logo,Time & Materials,269842.00,2025-02-05,2025-06-05,Completed,3
+23,438,39,Mesh Robust Functionalities - Services Closed Won,Services New Logo,Retainer,464401.00,2024-05-21,2024-12-17,Completed,6
+24,439,48,Mesh Viral Platforms - Services Closed Won,Services New Logo,Retainer,1244464.00,2025-10-02,2026-03-01,Completed,20
+25,440,66,Streamline Bleeding-Edge Solutions - Services Closed Won,Services New Logo,Project-based,1308069.00,2025-07-20,2026-05-16,Active,24
+26,456,138,Redefine Value-Added Channels - Subsidiary Services Expansion,Cross-sell Services,Retainer,180967.00,2025-01-25,2025-12-21,Completed,33
+27,457,135,Iterate Robust Functionalities - Subsidiary Services Expansion,Cross-sell Services,Project-based,600896.00,2025-12-28,2026-07-26,Active,37
+28,478,132,Leverage Value-Added Markets - Subsidiary Services Expansion,Cross-sell Services,Retainer,596409.00,2026-01-15,2027-01-10,Active,44
+29,481,139,Engineer Clicks-And-Mortar Technologies - Subsidiary Services Expansion,Cross-sell Services,Time & Materials,626226.00,2026-03-19,2027-03-14,Active,45
+30,484,132,Re-Contextualize Ubiquitous Web Services - Subsidiary Services Expansion,Cross-sell Services,Retainer,792274.00,2024-12-30,2025-08-27,Completed,58
+31,495,126,Visualize Innovative Synergies - Subsidiary Services Expansion,Cross-sell Services,Project-based,106334.00,2026-08-19,2027-04-16,Planning,52
+32,502,146,Architect B2B Synergies - Subsidiary Services Expansion,Cross-sell Services,Time & Materials,197186.00,2024-06-05,2025-01-01,Completed,3
+33,506,141,Seize Viral Channels - Subsidiary Services Expansion,Cross-sell Services,Retainer,809811.00,2026-07-03,2027-04-29,Planning,6
+34,508,127,Empower Best-Of-Breed Portals - Subsidiary Services Expansion,Cross-sell Services,Retainer,171589.00,2026-07-17,2027-04-13,Planning,20
+35,513,126,Syndicate Revolutionary Web-Readiness - Subsidiary Services Expansion,Cross-sell Services,Retainer,636040.00,2024-10-01,2025-07-28,Completed,24
