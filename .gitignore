@@ -44,5 +44,5 @@ docker/minio/data
 # External checkout
 docker/clickhouse/clickstack/
 
-# Local files
-data
+# Local files (root-level data/landing/ output directory)
+/data
