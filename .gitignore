@@ -29,6 +29,7 @@ CLAUDE.md
 docker/clickhouse/single-node/data
 docker/clickhouse/single-node/logs
 docker/airflow/logs
+docker/minio/data
 
 # External checkout
 docker/clickhouse/clickstack/
