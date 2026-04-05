@@ -43,3 +43,6 @@ docker/minio/data
 
 # External checkout
 docker/clickhouse/clickstack/
+
+# Local files
+data
