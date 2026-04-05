@@ -1,0 +1,642 @@
+# ----------------------------
+# HR Locations (3 static records)
+# ----------------------------
+
+- object: hr_locations
+  nickname: LocSG
+  count: 1
+  fields:
+    location_id: LOC-SG
+    city: Singapore
+    country: Singapore
+    currency: SGD
+    timezone: Asia/Singapore
+
+- object: hr_locations
+  nickname: LocVN
+  count: 1
+  fields:
+    location_id: LOC-VN
+    city: Ho Chi Minh City
+    country: Vietnam
+    currency: VND
+    timezone: Asia/Ho_Chi_Minh
+
+- object: hr_locations
+  nickname: LocID
+  count: 1
+  fields:
+    location_id: LOC-ID
+    city: Jakarta
+    country: Indonesia
+    currency: IDR
+    timezone: Asia/Jakarta
+
+
+# ----------------------------
+# HR Departments (5 static records)
+# ----------------------------
+
+- object: hr_departments
+  nickname: DeptPS
+  count: 1
+  fields:
+    department_id: DEPT-PS
+    department_name: Professional Services
+    cost_center: CC-PS-001
+
+- object: hr_departments
+  nickname: DeptENG
+  count: 1
+  fields:
+    department_id: DEPT-ENG
+    department_name: Engineering
+    cost_center: CC-ENG-002
+
+- object: hr_departments
+  nickname: DeptSALES
+  count: 1
+  fields:
+    department_id: DEPT-SALES
+    department_name: Sales
+    cost_center: CC-SALES-003
+
+- object: hr_departments
+  nickname: DeptHR
+  count: 1
+  fields:
+    department_id: DEPT-HR
+    department_name: Human Resources
+    cost_center: CC-HR-004
+
+- object: hr_departments
+  nickname: DeptFIN
+  count: 1
+  fields:
+    department_id: DEPT-FIN
+    department_name: Finance
+    cost_center: CC-FIN-005
+
+
+# ----------------------------
+# HR Employees — 9 blocks (3 locations x 3 tiers) = 150 total
+# Department distribution target: PS=40%, ENG=25%, SALES=15%, HR=10%, FIN=10%
+# ----------------------------
+
+# SG Junior (20 employees)
+- object: hr_employees
+  nickname: SG_Junior
+  count: 20
+  fields:
+    first_name:
+      fake: first_name
+    last_name:
+      fake: last_name
+    email:
+      fake: email
+    job_title:
+      random_choice:
+        - Junior Data Engineer
+        - Junior Consultant
+        - Junior Analyst
+        - Junior Developer
+    department_id:
+      random_choice:
+        - DEPT-PS
+        - DEPT-PS
+        - DEPT-PS
+        - DEPT-PS
+        - DEPT-ENG
+        - DEPT-ENG
+        - DEPT-SALES
+        - DEPT-HR
+        - DEPT-FIN
+        - DEPT-PS
+    location_id: LOC-SG
+    hire_date: ${{fake.date_between(start_date='-39M', end_date='-1M')}}
+    current_salary:
+      random_number:
+        min: 4000
+        max: 6000
+    salary_currency: SGD
+    is_active: true
+
+# SG Mid (25 employees)
+- object: hr_employees
+  nickname: SG_Mid
+  count: 25
+  fields:
+    first_name:
+      fake: first_name
+    last_name:
+      fake: last_name
+    email:
+      fake: email
+    job_title:
+      random_choice:
+        - Data Engineer
+        - Senior Consultant
+        - Business Analyst
+        - Software Engineer
+        - Account Manager
+    department_id:
+      random_choice:
+        - DEPT-PS
+        - DEPT-PS
+        - DEPT-PS
+        - DEPT-PS
+        - DEPT-ENG
+        - DEPT-ENG
+        - DEPT-SALES
+        - DEPT-HR
+        - DEPT-FIN
+        - DEPT-PS
+    location_id: LOC-SG
+    hire_date: ${{fake.date_between(start_date='-39M', end_date='-1M')}}
+    current_salary:
+      random_number:
+        min: 6000
+        max: 9000
+    salary_currency: SGD
+    is_active: true
+
+# SG Senior (15 employees)
+- object: hr_employees
+  nickname: SG_Senior
+  count: 15
+  fields:
+    first_name:
+      fake: first_name
+    last_name:
+      fake: last_name
+    email:
+      fake: email
+    job_title:
+      random_choice:
+        - Senior Data Engineer
+        - Principal Consultant
+        - Lead Analyst
+        - Engineering Lead
+        - Sales Director
+    department_id:
+      random_choice:
+        - DEPT-PS
+        - DEPT-PS
+        - DEPT-PS
+        - DEPT-PS
+        - DEPT-ENG
+        - DEPT-ENG
+        - DEPT-SALES
+        - DEPT-HR
+        - DEPT-FIN
+        - DEPT-PS
+    location_id: LOC-SG
+    hire_date: ${{fake.date_between(start_date='-39M', end_date='-1M')}}
+    current_salary:
+      random_number:
+        min: 9000
+        max: 15000
+    salary_currency: SGD
+    is_active: true
+
+# VN Junior (18 employees)
+- object: hr_employees
+  nickname: VN_Junior
+  count: 18
+  fields:
+    first_name:
+      fake: first_name
+    last_name:
+      fake: last_name
+    email:
+      fake: email
+    job_title:
+      random_choice:
+        - Junior Data Engineer
+        - Junior Consultant
+        - Junior Analyst
+        - Junior Developer
+    department_id:
+      random_choice:
+        - DEPT-PS
+        - DEPT-PS
+        - DEPT-PS
+        - DEPT-PS
+        - DEPT-ENG
+        - DEPT-ENG
+        - DEPT-SALES
+        - DEPT-HR
+        - DEPT-FIN
+        - DEPT-PS
+    location_id: LOC-VN
+    hire_date: ${{fake.date_between(start_date='-39M', end_date='-1M')}}
+    current_salary:
+      random_number:
+        min: 15000000
+        max: 25000000
+    salary_currency: VND
+    is_active: true
+
+# VN Mid (20 employees)
+- object: hr_employees
+  nickname: VN_Mid
+  count: 20
+  fields:
+    first_name:
+      fake: first_name
+    last_name:
+      fake: last_name
+    email:
+      fake: email
+    job_title:
+      random_choice:
+        - Data Engineer
+        - Senior Consultant
+        - Business Analyst
+        - Software Engineer
+        - Account Manager
+    department_id:
+      random_choice:
+        - DEPT-PS
+        - DEPT-PS
+        - DEPT-PS
+        - DEPT-PS
+        - DEPT-ENG
+        - DEPT-ENG
+        - DEPT-SALES
+        - DEPT-HR
+        - DEPT-FIN
+        - DEPT-PS
+    location_id: LOC-VN
+    hire_date: ${{fake.date_between(start_date='-39M', end_date='-1M')}}
+    current_salary:
+      random_number:
+        min: 25000000
+        max: 40000000
+    salary_currency: VND
+    is_active: true
+
+# VN Senior (12 employees)
+- object: hr_employees
+  nickname: VN_Senior
+  count: 12
+  fields:
+    first_name:
+      fake: first_name
+    last_name:
+      fake: last_name
+    email:
+      fake: email
+    job_title:
+      random_choice:
+        - Senior Data Engineer
+        - Principal Consultant
+        - Lead Analyst
+        - Engineering Lead
+        - Sales Director
+    department_id:
+      random_choice:
+        - DEPT-PS
+        - DEPT-PS
+        - DEPT-PS
+        - DEPT-PS
+        - DEPT-ENG
+        - DEPT-ENG
+        - DEPT-SALES
+        - DEPT-HR
+        - DEPT-FIN
+        - DEPT-PS
+    location_id: LOC-VN
+    hire_date: ${{fake.date_between(start_date='-39M', end_date='-1M')}}
+    current_salary:
+      random_number:
+        min: 40000000
+        max: 70000000
+    salary_currency: VND
+    is_active: true
+
+# ID Junior (14 employees)
+- object: hr_employees
+  nickname: ID_Junior
+  count: 14
+  fields:
+    first_name:
+      fake: first_name
+    last_name:
+      fake: last_name
+    email:
+      fake: email
+    job_title:
+      random_choice:
+        - Junior Data Engineer
+        - Junior Consultant
+        - Junior Analyst
+        - Junior Developer
+    department_id:
+      random_choice:
+        - DEPT-PS
+        - DEPT-PS
+        - DEPT-PS
+        - DEPT-PS
+        - DEPT-ENG
+        - DEPT-ENG
+        - DEPT-SALES
+        - DEPT-HR
+        - DEPT-FIN
+        - DEPT-PS
+    location_id: LOC-ID
+    hire_date: ${{fake.date_between(start_date='-39M', end_date='-1M')}}
+    current_salary:
+      random_number:
+        min: 8000000
+        max: 14000000
+    salary_currency: IDR
+    is_active: true
+
+# ID Mid (16 employees)
+- object: hr_employees
+  nickname: ID_Mid
+  count: 16
+  fields:
+    first_name:
+      fake: first_name
+    last_name:
+      fake: last_name
+    email:
+      fake: email
+    job_title:
+      random_choice:
+        - Data Engineer
+        - Senior Consultant
+        - Business Analyst
+        - Software Engineer
+        - Account Manager
+    department_id:
+      random_choice:
+        - DEPT-PS
+        - DEPT-PS
+        - DEPT-PS
+        - DEPT-PS
+        - DEPT-ENG
+        - DEPT-ENG
+        - DEPT-SALES
+        - DEPT-HR
+        - DEPT-FIN
+        - DEPT-PS
+    location_id: LOC-ID
+    hire_date: ${{fake.date_between(start_date='-39M', end_date='-1M')}}
+    current_salary:
+      random_number:
+        min: 14000000
+        max: 22000000
+    salary_currency: IDR
+    is_active: true
+
+# ID Senior (10 employees)
+- object: hr_employees
+  nickname: ID_Senior
+  count: 10
+  fields:
+    first_name:
+      fake: first_name
+    last_name:
+      fake: last_name
+    email:
+      fake: email
+    job_title:
+      random_choice:
+        - Senior Data Engineer
+        - Principal Consultant
+        - Lead Analyst
+        - Engineering Lead
+        - Sales Director
+    department_id:
+      random_choice:
+        - DEPT-PS
+        - DEPT-PS
+        - DEPT-PS
+        - DEPT-PS
+        - DEPT-ENG
+        - DEPT-ENG
+        - DEPT-SALES
+        - DEPT-HR
+        - DEPT-FIN
+        - DEPT-PS
+    location_id: LOC-ID
+    hire_date: ${{fake.date_between(start_date='-39M', end_date='-1M')}}
+    current_salary:
+      random_number:
+        min: 22000000
+        max: 40000000
+    salary_currency: IDR
+    is_active: true
+
+
+# ----------------------------
+# HR Employee Events — 9 matching blocks (one Hire event per employee)
+# Python post-processor will replace these with authoritative events
+# ----------------------------
+
+# Hire events for SG Junior (20)
+- object: hr_employee_events
+  count: 20
+  fields:
+    event_id: ${{object_name + "-" + str(child_index)}}
+    employee_id:
+      random_reference: SG_Junior
+    event_type: Hire
+    effective_date: ${{fake.date_between(start_date='-39M', end_date='-1M')}}
+    old_salary:
+    old_job_title:
+    new_salary:
+      random_number:
+        min: 4000
+        max: 6000
+    new_job_title:
+      random_choice:
+        - Junior Data Engineer
+        - Junior Consultant
+        - Junior Analyst
+        - Junior Developer
+
+# Hire events for SG Mid (25)
+- object: hr_employee_events
+  count: 25
+  fields:
+    event_id: ${{object_name + "-" + str(child_index)}}
+    employee_id:
+      random_reference: SG_Mid
+    event_type: Hire
+    effective_date: ${{fake.date_between(start_date='-39M', end_date='-1M')}}
+    old_salary:
+    old_job_title:
+    new_salary:
+      random_number:
+        min: 6000
+        max: 9000
+    new_job_title:
+      random_choice:
+        - Data Engineer
+        - Senior Consultant
+        - Business Analyst
+        - Software Engineer
+        - Account Manager
+
+# Hire events for SG Senior (15)
+- object: hr_employee_events
+  count: 15
+  fields:
+    event_id: ${{object_name + "-" + str(child_index)}}
+    employee_id:
+      random_reference: SG_Senior
+    event_type: Hire
+    effective_date: ${{fake.date_between(start_date='-39M', end_date='-1M')}}
+    old_salary:
+    old_job_title:
+    new_salary:
+      random_number:
+        min: 9000
+        max: 15000
+    new_job_title:
+      random_choice:
+        - Senior Data Engineer
+        - Principal Consultant
+        - Lead Analyst
+        - Engineering Lead
+        - Sales Director
+
+# Hire events for VN Junior (18)
+- object: hr_employee_events
+  count: 18
+  fields:
+    event_id: ${{object_name + "-" + str(child_index)}}
+    employee_id:
+      random_reference: VN_Junior
+    event_type: Hire
+    effective_date: ${{fake.date_between(start_date='-39M', end_date='-1M')}}
+    old_salary:
+    old_job_title:
+    new_salary:
+      random_number:
+        min: 15000000
+        max: 25000000
+    new_job_title:
+      random_choice:
+        - Junior Data Engineer
+        - Junior Consultant
+        - Junior Analyst
+        - Junior Developer
+
+# Hire events for VN Mid (20)
+- object: hr_employee_events
+  count: 20
+  fields:
+    event_id: ${{object_name + "-" + str(child_index)}}
+    employee_id:
+      random_reference: VN_Mid
+    event_type: Hire
+    effective_date: ${{fake.date_between(start_date='-39M', end_date='-1M')}}
+    old_salary:
+    old_job_title:
+    new_salary:
+      random_number:
+        min: 25000000
+        max: 40000000
+    new_job_title:
+      random_choice:
+        - Data Engineer
+        - Senior Consultant
+        - Business Analyst
+        - Software Engineer
+        - Account Manager
+
+# Hire events for VN Senior (12)
+- object: hr_employee_events
+  count: 12
+  fields:
+    event_id: ${{object_name + "-" + str(child_index)}}
+    employee_id:
+      random_reference: VN_Senior
+    event_type: Hire
+    effective_date: ${{fake.date_between(start_date='-39M', end_date='-1M')}}
+    old_salary:
+    old_job_title:
+    new_salary:
+      random_number:
+        min: 40000000
+        max: 70000000
+    new_job_title:
+      random_choice:
+        - Senior Data Engineer
+        - Principal Consultant
+        - Lead Analyst
+        - Engineering Lead
+        - Sales Director
+
+# Hire events for ID Junior (14)
+- object: hr_employee_events
+  count: 14
+  fields:
+    event_id: ${{object_name + "-" + str(child_index)}}
+    employee_id:
+      random_reference: ID_Junior
+    event_type: Hire
+    effective_date: ${{fake.date_between(start_date='-39M', end_date='-1M')}}
+    old_salary:
+    old_job_title:
+    new_salary:
+      random_number:
+        min: 8000000
+        max: 14000000
+    new_job_title:
+      random_choice:
+        - Junior Data Engineer
+        - Junior Consultant
+        - Junior Analyst
+        - Junior Developer
+
+# Hire events for ID Mid (16)
+- object: hr_employee_events
+  count: 16
+  fields:
+    event_id: ${{object_name + "-" + str(child_index)}}
+    employee_id:
+      random_reference: ID_Mid
+    event_type: Hire
+    effective_date: ${{fake.date_between(start_date='-39M', end_date='-1M')}}
+    old_salary:
+    old_job_title:
+    new_salary:
+      random_number:
+        min: 14000000
+        max: 22000000
+    new_job_title:
+      random_choice:
+        - Data Engineer
+        - Senior Consultant
+        - Business Analyst
+        - Software Engineer
+        - Account Manager
+
+# Hire events for ID Senior (10)
+- object: hr_employee_events
+  count: 10
+  fields:
+    event_id: ${{object_name + "-" + str(child_index)}}
+    employee_id:
+      random_reference: ID_Senior
+    event_type: Hire
+    effective_date: ${{fake.date_between(start_date='-39M', end_date='-1M')}}
+    old_salary:
+    old_job_title:
+    new_salary:
+      random_number:
+        min: 22000000
+        max: 40000000
+    new_job_title:
+      random_choice:
+        - Senior Data Engineer
+        - Principal Consultant
+        - Lead Analyst
+        - Engineering Lead
+        - Sales Director
