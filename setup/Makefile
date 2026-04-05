@@ -1,7 +1,8 @@
 .PHONY: help \
         sf-purge sf-generate sf-enrich sf-load sf-analyze-year1 sf-full-refresh \
         hr-generate \
-        ops-generate
+        ops-generate \
+        finops-generate all-generate
 
 TARGET_ORG ?= dev-org
 START_DATE ?= 2024-04-16
@@ -24,6 +25,12 @@ help:
 	@echo ""
 	@echo "Ops targets:"
 	@echo "  make ops-generate                             - Generate Ops CSVs (projects, allocations, timesheets)"
+	@echo ""
+	@echo "FinOps targets:"
+	@echo "  make finops-generate                              - Generate FinOps CSVs (cloud resources, billing, incidents)"
+	@echo ""
+	@echo "Unified targets:"
+	@echo "  make all-generate                                 - Run full pipeline: HR → Ops → FinOps → copy to data/landing/"
 
 sf-purge:
 	uv run --project . python salesforce/scripts/purge_sales_data.py --target-org $(TARGET_ORG) --yes
@@ -47,3 +54,9 @@ hr-generate:
 
 ops-generate:
 	bash ops/generate.sh
+
+finops-generate:
+	bash finops/generate.sh
+
+all-generate:
+	bash generate.sh
