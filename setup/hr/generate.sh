@@ -5,11 +5,13 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 VENV_PATH="${PROJECT_ROOT}/setup/salesforce/.venv"
 RECIPE_DIR="${SCRIPT_DIR}"
-OUTPUT_DIR="${PROJECT_ROOT}/data/landing/hr"
+OUTPUT_DIR="${SCRIPT_DIR}/data"
 
 echo "=== HR Data Generation ==="
 echo "Project root: ${PROJECT_ROOT}"
 echo "Output dir:   ${OUTPUT_DIR}"
+
+mkdir -p "${OUTPUT_DIR}"
 
 # Activate Snowfakery venv
 # shellcheck source=/dev/null

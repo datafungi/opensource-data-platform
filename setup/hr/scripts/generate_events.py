@@ -6,10 +6,10 @@ import uuid
 from datetime import date, timedelta
 from pathlib import Path
 
-PROMOTION_RATE = 0.40
 TERMINATION_RATE = 0.15
 PROMOTION_DELAY_MONTHS = 18
-DATA_DIR = Path(__file__).parent.parent.parent.parent / "data" / "landing" / "hr"
+DATA_DIR = Path(__file__).parent.parent / "data"
+CUTOFF_DATE = date(2026, 4, 5)
 
 SALARY_BANDS: dict[str, dict[str, tuple[int, int]]] = {
     "SGD": {"Junior": (4000, 6000), "Mid": (6000, 9000), "Senior": (9000, 15000)},
@@ -27,7 +27,16 @@ SALARY_BANDS: dict[str, dict[str, tuple[int, int]]] = {
 
 TIER_ORDER = ["Junior", "Mid", "Senior"]
 
-CUTOFF_DATE = date(2026, 4, 5)
+# Keywords that indicate Senior tier (checked after "Junior" check)
+SENIOR_KEYWORDS = (
+    "Senior",
+    "Principal",
+    "Director",
+    "Lead",
+    "Staff",
+    "Controller",
+    "Head of",
+)
 
 EVENT_FIELDS = [
     "event_id",
@@ -49,6 +58,7 @@ EMPLOYEE_FIELDS = [
     "department_id",
     "location_id",
     "hire_date",
+    "termination_date",
     "current_salary",
     "salary_currency",
     "is_active",
@@ -58,7 +68,7 @@ EMPLOYEE_FIELDS = [
 def _assign_tier(job_title: str) -> str:
     if "Junior" in job_title:
         return "Junior"
-    if any(kw in job_title for kw in ("Senior", "Principal", "Lead", "Director")):
+    if any(kw in job_title for kw in SENIOR_KEYWORDS):
         return "Senior"
     return "Mid"
 
@@ -94,15 +104,41 @@ def _make_event_id() -> str:
 
 def _promote_title(job_title: str, current_tier: str) -> str:
     if current_tier == "Junior":
-        # "Junior X" -> "X" (remove "Junior " prefix)
-        promoted = job_title.replace("Junior ", "", 1)
-    elif current_tier == "Mid":
-        # "X" -> "Senior X"
-        promoted = "Senior " + job_title
-    else:
-        # Already senior, no change
-        promoted = job_title
-    return promoted
+        return job_title.replace("Junior ", "", 1)
+    if current_tier == "Mid":
+        return "Senior " + job_title
+    return job_title
+
+
+def _promotion_rate(months_since_eligible: float) -> float:
+    """Tenure-based promotion probability.
+
+    Employees eligible for 36+ months are near-certain to be promoted;
+    shorter tenures scale down proportionally.
+    """
+    if months_since_eligible >= 36:
+        return 0.95
+    if months_since_eligible >= 24:
+        return 0.80
+    return 0.65
+
+
+def _assign_emails(employees: list[dict]) -> None:
+    """Rewrite email field as firstname.lastname@datafungi.net with deduplication.
+
+    First occurrence: john.smith@datafungi.net
+    Subsequent occurrences: john.smith2@datafungi.net, john.smith3@datafungi.net, ...
+    Modifies the list in-place.
+    """
+    seen: dict[str, int] = {}
+    for emp in employees:
+        first = emp["first_name"].lower().replace(" ", "")
+        last = emp["last_name"].lower().replace(" ", "")
+        base = f"{first}.{last}"
+        count = seen.get(base, 0) + 1
+        seen[base] = count
+        suffix = "" if count == 1 else str(count)
+        emp["email"] = f"{base}{suffix}@datafungi.net"
 
 
 def build_events(employees: list[dict]) -> tuple[list[dict], list[dict]]:
@@ -112,14 +148,16 @@ def build_events(employees: list[dict]) -> tuple[list[dict], list[dict]]:
     for emp in employees:
         hire_date = date.fromisoformat(emp["hire_date"])
         currency = emp["salary_currency"]
-        hire_salary = int(emp["current_salary"])
         hire_title = emp["job_title"]
         current_tier = _assign_tier(hire_title)
+
+        # Compute hire salary from tier (ignore recipe placeholder value)
+        hire_salary = _random_salary(currency, current_tier)
 
         emp_events: list[dict] = []
 
         # 1. Hire event (always)
-        hire_event: dict = {
+        emp_events.append({
             "event_id": _make_event_id(),
             "employee_id": emp["employee_id"],
             "event_type": "Hire",
@@ -128,52 +166,61 @@ def build_events(employees: list[dict]) -> tuple[list[dict], list[dict]]:
             "old_job_title": "",
             "new_salary": hire_salary,
             "new_job_title": hire_title,
-        }
-        emp_events.append(hire_event)
+        })
 
         current_salary = hire_salary
         current_title = hire_title
         base_date = hire_date
         is_active = True
+        termination_date: date | None = None
 
-        # 2. Promotion (optional, ~40%)
-        promotion_date: date | None = None
-        if current_tier != "Senior" and random.random() < PROMOTION_RATE:
-            promotion_date = _add_months(hire_date, PROMOTION_DELAY_MONTHS)
-            if promotion_date <= CUTOFF_DATE:
-                new_salary = _get_promotion_salary(currency, current_tier, current_salary)
-                new_title = _promote_title(current_title, current_tier)
-                promo_event: dict = {
-                    "event_id": _make_event_id(),
-                    "employee_id": emp["employee_id"],
-                    "event_type": "Promotion",
-                    "effective_date": promotion_date.isoformat(),
-                    "old_salary": current_salary,
-                    "old_job_title": current_title,
-                    "new_salary": new_salary,
-                    "new_job_title": new_title,
-                }
-                emp_events.append(promo_event)
-                current_salary = new_salary
-                current_title = new_title
-                base_date = promotion_date
+        # 2. Promotions — tenure-based, up to 2 rounds
+        for _ in range(2):
+            if current_tier == "Senior":
+                break
+            months_since_base = (CUTOFF_DATE - base_date).days / 30
+            if months_since_base < PROMOTION_DELAY_MONTHS:
+                break
+            if random.random() > _promotion_rate(months_since_base):
+                break
 
-        # 3. Termination (optional, ~15%)
+            promo_date = _add_months(base_date, PROMOTION_DELAY_MONTHS)
+            if promo_date > CUTOFF_DATE:
+                break
+
+            new_salary = _get_promotion_salary(currency, current_tier, current_salary)
+            new_title = _promote_title(current_title, current_tier)
+            emp_events.append({
+                "event_id": _make_event_id(),
+                "employee_id": emp["employee_id"],
+                "event_type": "Promotion",
+                "effective_date": promo_date.isoformat(),
+                "old_salary": current_salary,
+                "old_job_title": current_title,
+                "new_salary": new_salary,
+                "new_job_title": new_title,
+            })
+            current_salary = new_salary
+            current_title = new_title
+            current_tier = _get_next_tier(current_tier)
+            base_date = promo_date
+
+        # 3. Termination (~15%)
         if random.random() < TERMINATION_RATE:
-            termination_date = _add_months(base_date, random.randint(6, 18))
-            if termination_date <= CUTOFF_DATE:
-                term_event: dict = {
+            term_date = _add_months(base_date, random.randint(6, 18))
+            if term_date <= CUTOFF_DATE:
+                emp_events.append({
                     "event_id": _make_event_id(),
                     "employee_id": emp["employee_id"],
                     "event_type": "Termination",
-                    "effective_date": termination_date.isoformat(),
+                    "effective_date": term_date.isoformat(),
                     "old_salary": current_salary,
                     "old_job_title": current_title,
                     "new_salary": "",
                     "new_job_title": "",
-                }
-                emp_events.append(term_event)
+                })
                 is_active = False
+                termination_date = term_date
 
         # 4. Sort events chronologically
         emp_events.sort(key=lambda e: e["effective_date"])
@@ -183,6 +230,7 @@ def build_events(employees: list[dict]) -> tuple[list[dict], list[dict]]:
         emp_copy["current_salary"] = current_salary
         emp_copy["job_title"] = current_title
         emp_copy["is_active"] = "true" if is_active else "false"
+        emp_copy["termination_date"] = termination_date.isoformat() if termination_date else ""
         updated_employees.append(emp_copy)
 
         all_events.extend(emp_events)
@@ -197,6 +245,7 @@ def main() -> None:
     with employees_path.open(newline="", encoding="utf-8") as fh:
         employees = list(csv.DictReader(fh))
 
+    _assign_emails(employees)
     updated_employees, all_events = build_events(employees)
 
     # Write updated employees (overwrite in place, enforce column order)
@@ -205,7 +254,7 @@ def main() -> None:
         writer.writeheader()
         writer.writerows(updated_employees)
 
-    # Replace Snowfakery-generated events with authoritative events
+    # Write authoritative events (creates file if absent)
     with events_path.open("w", newline="", encoding="utf-8") as fh:
         writer = csv.DictWriter(fh, fieldnames=EVENT_FIELDS, extrasaction="ignore")
         writer.writeheader()

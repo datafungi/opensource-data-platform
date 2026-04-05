@@ -1,6 +1,0 @@
-department_id,department_name,cost_center,id
-DEPT-PS,Professional Services,CC-PS-001,1
-DEPT-ENG,Engineering,CC-ENG-002,2
-DEPT-SALES,Sales,CC-SALES-003,3
-DEPT-HR,Human Resources,CC-HR-004,4
-DEPT-FIN,Finance,CC-FIN-005,5

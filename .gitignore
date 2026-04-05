@@ -27,6 +27,10 @@ CLAUDE.md
 # Snowfakery generated metadata
 csvw_metadata.json
 
+# HR generated data (re-generate with: bash setup/hr/generate.sh)
+setup/hr/data/*.csv
+data/landing/hr/*.csv
+
 # Jetbrains
 .idea
 
