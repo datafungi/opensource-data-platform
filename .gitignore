@@ -36,10 +36,10 @@ data/landing/hr/*.csv
 .idea
 
 # Docker volumes
-docker/clickhouse/single-node/data
-docker/clickhouse/single-node/logs
-docker/airflow/logs
-docker/minio/data
+infra/docker/clickhouse/single-node/data
+infra/docker/clickhouse/single-node/logs
+infra/docker/airflow/logs
+infra/docker/minio/data
 
 # External checkout
 docker/clickhouse/clickstack/
