@@ -1,9 +1,0 @@
-incident_type_code,name,description,typical_causes,impacted_services,is_customer_facing,avg_p1_pct,avg_p2_pct
-OUTAGE,Service Outage,Complete unavailability of one or more production services,"Hardware failure, network partition, bad deployment, cascading failure","Compute, Database, Storage",True,35.00,45.00
-DEGRADED,Performance Degradation,Elevated latency or significantly reduced throughput without full unavailability,"Memory leak, resource exhaustion, slow queries, noisy neighbours","Compute, Database",True,10.00,40.00
-SECURITY,Security Incident,"Unauthorized access attempt, credential compromise, or policy violation detected","Credential leak, misconfigured ACLs, unpatched CVE, phishing","All services",True,40.00,35.00
-DATA_LOSS,Data Loss or Corruption,Partial or complete loss of data integrity or recoverability,"Failed backups, storage device failure, runaway delete job, schema migration error","Storage, Database",True,50.00,30.00
-NETWORK,Network Disruption,Connectivity failure between services or between services and end users,"DNS failure, BGP misconfiguration, DDoS, ISP outage, expired TLS certificate","Network, CDN, Load Balancer",True,20.00,45.00
-CONFIG,Configuration Error,Service failure caused by an incorrect configuration value or drift from IaC,"Bad deployment config, manual override, environment variable mismatch, feature flag error","All services",False,5.00,25.00
-CAPACITY,Capacity Breach,"Resource limits exceeded causing throttling, OOM kills, or queue saturation","Traffic spike beyond autoscaling limits, data volume growth, inefficient queries","Compute, Storage, Queue",True,15.00,40.00
-DEPENDENCY,Dependency Failure,Failure caused by an upstream service or third-party vendor being unavailable,"Cloud provider incident, third-party API outage, internal service SLA breach","All services",True,25.00,50.00
