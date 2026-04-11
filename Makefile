@@ -1,9 +1,9 @@
-POSTGRES_COMPOSE    := docker/postgres/docker-compose.yaml
-AIRFLOW_COMPOSE     := docker/airflow/docker-compose.yaml
-MARQUEZ_COMPOSE     := docker/marquez/docker-compose.yaml
-MINIO_COMPOSE       := docker/minio/docker-compose.yaml
-MOCK_SN_COMPOSE     := docker/mock-servicenow/docker-compose.yaml
-CLICKHOUSE_COMPOSE  := docker/clickhouse/single-node/docker-compose.yaml
+POSTGRES_COMPOSE    := infra/docker/postgres/docker-compose.yaml
+AIRFLOW_COMPOSE     := infra/docker/airflow/docker-compose.yaml
+MARQUEZ_COMPOSE     := infra/docker/marquez/docker-compose.yaml
+MINIO_COMPOSE       := infra/docker/minio/docker-compose.yaml
+MOCK_SN_COMPOSE     := infra/docker/mock-servicenow/docker-compose.yaml
+CLICKHOUSE_COMPOSE  := infra/docker/clickhouse/single-node/docker-compose.yaml
 AIRFLOW_IMAGE       := extended_airflow:3.1.7-python3.12
 
 # Compose files per component (dependencies included)

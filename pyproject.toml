@@ -23,6 +23,7 @@ dev = [
     "pytest>=9.0.2",
     "ruff>=0.15.7",
     "pytz>=2025.2",
+    "mypy>=1.20.0",
 ]
 
 [tool.pytest.ini_options]
