@@ -22,33 +22,24 @@ A containerized local development platform for Apache Airflow data pipelines, fe
 │   └── plugins/
 │       ├── operators/               # Custom operators
 │       └── providers/               # Custom providers
-├── setup/
-│   ├── context/
-│   │   └── BUSINESS_MODEL.md        # Business assumptions for synthetic data generation
-│   └── salesforce/
-│       ├── recipes/                 # Snowfakery recipe(s)
-│       ├── scripts/                 # Auth, purge, enrich, load utilities
-│       ├── docs/                    # Pipeline analytics playbook (SOQL)
-│       ├── force-app/               # Salesforce metadata (fields, permission set)
-│       ├── data/                    # Generated CSV artifacts
-│       ├── Makefile                 # Salesforce workflow shortcuts
-│       └── README.md
-├── docker/
-│   ├── airflow/
-│   │   ├── Dockerfile               # Custom Airflow image
-│   │   └── docker-compose.yaml
-│   ├── marquez/
-│   │   └── docker-compose.yaml
-│   ├── minio/
-│   │   └── docker-compose.yaml
-│   ├── mock-servicenow/
-│   │   ├── Dockerfile
-│   │   ├── docker-compose.yaml
-│   │   ├── requirements.txt
-│   │   └── app/                     # FastAPI mock application
-│   └── postgres/
-│       ├── docker-compose.yaml
-│       └── init-db.sh               # Creates airflow + marquez databases
+├── infra/ 
+    ├── docker/
+    │   ├── airflow/
+    │   │   ├── Dockerfile               # Custom Airflow image
+    │   │   └── docker-compose.yaml
+    │   ├── marquez/
+    │   │   └── docker-compose.yaml
+    │   ├── minio/
+    │   │   └── docker-compose.yaml
+    │   ├── mock-servicenow/
+    │   │   ├── Dockerfile
+    │   │   ├── docker-compose.yaml
+    │   │   ├── requirements.txt
+    │   │   └── app/                     # FastAPI mock application
+    │   └── postgres/
+    │       ├── docker-compose.yaml
+    │       └── init-db.sh               # Creates airflow + marquez databases
+    └── terraform/
 ├── tests/
 │   ├── mock-servicenow/             # Mock API tests
 │   └── salesforce/                  # Salesforce setup script unit tests
@@ -81,7 +72,7 @@ make up component=mock-servicenow
 ## Service Access
 
 | Service             | URL                   | Credentials             |
-| ------------------- | --------------------- | ----------------------- |
+|---------------------|-----------------------|-------------------------|
 | Airflow UI          | http://localhost:8080 | airflow / airflow       |
 | Flower              | http://localhost:5555 | (profile: flower)       |
 | Marquez Web         | http://localhost:3000 | —                       |
