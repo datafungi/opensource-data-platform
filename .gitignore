@@ -24,6 +24,7 @@ logs/
 CLAUDE.md
 .gemini
 .planning
+.codex
 
 # Snowfakery generated metadata
 csvw_metadata.json
