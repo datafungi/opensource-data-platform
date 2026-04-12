@@ -9,11 +9,12 @@ allowed_ssh_cidrs = [
 ]
 
 create_jumpbox_public_ip = false
+enable_nat_gateway       = true
 
 vm_size = "Standard_D4as_v5"
 
-os_disk_size_gb   = 64
-data_disk_size_gb = 256
+os_disk_size_gb   = 32
+data_disk_size_gb = 64
 
 install_dokploy_on_control_vm = true
 

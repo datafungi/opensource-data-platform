@@ -34,6 +34,12 @@ variable "create_jumpbox_public_ip" {
   default     = false
 }
 
+variable "enable_nat_gateway" {
+  description = "Create an explicit NAT Gateway for VM outbound internet access and disable implicit default outbound access."
+  type        = bool
+  default     = true
+}
+
 variable "vnet_address_space" {
   description = "Address space for the lab virtual network."
   type        = string
@@ -55,7 +61,7 @@ variable "vm_size" {
 variable "os_disk_size_gb" {
   description = "OS disk size for each VM."
   type        = number
-  default     = 64
+  default     = 32
 }
 
 variable "os_disk_storage_account_type" {
@@ -67,7 +73,7 @@ variable "os_disk_storage_account_type" {
 variable "data_disk_size_gb" {
   description = "Data disk size for each VM."
   type        = number
-  default     = 256
+  default     = 64
 }
 
 variable "data_disk_storage_account_type" {

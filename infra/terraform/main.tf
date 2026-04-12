@@ -16,7 +16,12 @@ terraform {
 }
 
 provider "azurerm" {
-  features {}
+  features {
+    key_vault {
+      purge_soft_delete_on_destroy    = true
+      recover_soft_deleted_key_vaults = true
+    }
+  }
 }
 
 data "azurerm_client_config" "current" {}
@@ -74,10 +79,47 @@ resource "azurerm_virtual_network" "main" {
 }
 
 resource "azurerm_subnet" "vms" {
-  name                 = "snet-vms"
-  resource_group_name  = azurerm_resource_group.main.name
-  virtual_network_name = azurerm_virtual_network.main.name
-  address_prefixes     = [var.vm_subnet_address_prefix]
+  name                            = "snet-vms"
+  resource_group_name             = azurerm_resource_group.main.name
+  virtual_network_name            = azurerm_virtual_network.main.name
+  address_prefixes                = [var.vm_subnet_address_prefix]
+  default_outbound_access_enabled = !var.enable_nat_gateway
+}
+
+resource "azurerm_public_ip" "nat_gateway" {
+  count = var.enable_nat_gateway ? 1 : 0
+
+  name                = "pip-${var.project_name}-natgw"
+  location            = azurerm_resource_group.main.location
+  resource_group_name = azurerm_resource_group.main.name
+  allocation_method   = "Static"
+  sku                 = "Standard"
+  tags                = local.common_tags
+}
+
+resource "azurerm_nat_gateway" "vms" {
+  count = var.enable_nat_gateway ? 1 : 0
+
+  name                    = "natgw-${var.project_name}-vms"
+  location                = azurerm_resource_group.main.location
+  resource_group_name     = azurerm_resource_group.main.name
+  sku_name                = "Standard"
+  idle_timeout_in_minutes = 10
+  tags                    = local.common_tags
+}
+
+resource "azurerm_nat_gateway_public_ip_association" "vms" {
+  count = var.enable_nat_gateway ? 1 : 0
+
+  nat_gateway_id       = azurerm_nat_gateway.vms[0].id
+  public_ip_address_id = azurerm_public_ip.nat_gateway[0].id
+}
+
+resource "azurerm_subnet_nat_gateway_association" "vms" {
+  count = var.enable_nat_gateway ? 1 : 0
+
+  subnet_id      = azurerm_subnet.vms.id
+  nat_gateway_id = azurerm_nat_gateway.vms[0].id
 }
 
 resource "azurerm_network_security_group" "vms" {

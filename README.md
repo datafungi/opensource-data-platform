@@ -1,70 +1,57 @@
 # Opensource Data Platform
 
-A containerized local development platform for Apache Airflow data pipelines, featuring distributed execution, data lineage tracking, S3-compatible object storage, and a mock ServiceNow API for pipeline development without external dependencies.
+A local-first data platform for building and testing data pipelines, plus an
+optional Azure Terraform lab for practicing infrastructure deployment.
 
 ## Stack
 
-- **Apache Airflow 3.1.7** — workflow orchestration (CeleryExecutor)
-- **Redis** — Celery message broker
-- **PostgreSQL 16** — shared metadata database (Airflow + Marquez)
-- **Marquez** — data lineage tracking via OpenLineage
-- **MinIO** — S3-compatible object storage
-- **Mock ServiceNow API** — local ServiceNow Table API simulator backed by DuckDB
-- **Salesforce synthetic data setup** — Snowfakery recipe, enrichment/loader scripts, and metadata for pipeline analytics
-- **Python 3.12** / **uv** — dependency management
-- **Docker Compose** — local service orchestration
+- Apache Airflow with CeleryExecutor
+- Redis
+- PostgreSQL
+- ClickHouse
+- Marquez and OpenLineage
+- MinIO
+- Mock ServiceNow API
+- Docker Compose
+- Terraform for the Azure lab
 
-## Project Structure
+## Layout
 
-```
+```text
 .
-├── dags/                            # Airflow DAG definitions
-│   └── plugins/
-│       ├── operators/               # Custom operators
-│       └── providers/               # Custom providers
-├── infra/ 
-    ├── docker/
-    │   ├── airflow/
-    │   │   ├── Dockerfile               # Custom Airflow image
-    │   │   └── docker-compose.yaml
-    │   ├── marquez/
-    │   │   └── docker-compose.yaml
-    │   ├── minio/
-    │   │   └── docker-compose.yaml
-    │   ├── mock-servicenow/
-    │   │   ├── Dockerfile
-    │   │   ├── docker-compose.yaml
-    │   │   ├── requirements.txt
-    │   │   └── app/                     # FastAPI mock application
-    │   └── postgres/
-    │       ├── docker-compose.yaml
-    │       └── init-db.sh               # Creates airflow + marquez databases
-    └── terraform/
+├── dags/                  # Airflow DAGs and custom plugins
+├── infra/
+│   ├── docker/            # Airflow, Postgres, ClickHouse, MinIO, Marquez, mock APIs
+│   ├── scripts/           # Azure VM start/stop helpers
+│   └── terraform/         # Azure data infrastructure lab
 ├── tests/
-│   ├── mock-servicenow/             # Mock API tests
-│   └── salesforce/                  # Salesforce setup script unit tests
 ├── pyproject.toml
 └── Makefile
 ```
 
-## Getting Started
+## Local Development
 
-**Prerequisites:** Docker, Docker Compose, Python 3.12, uv, 8GB+ RAM
+Prerequisites:
+
+- Docker and Docker Compose
+- Python 3.12
+- `uv`
+- 8 GB or more RAM
+
+Start the local platform:
 
 ```bash
-# Copy and configure environment variables
-cp .env.example .env   # then edit credentials as needed
-
-# Install Python dependencies
+cp .env.example .env
 uv sync --dev
-
-# Start all services
 make up
+```
 
-# Or start individual components
-make up component=postgres
+Start one component:
+
+```bash
 make up component=airflow
-make up component=marquez
+make up component=postgres
+make up component=clickhouse
 make up component=minio
 make up component=mock-servicenow
 ```
@@ -74,77 +61,43 @@ make up component=mock-servicenow
 | Service             | URL                   | Credentials             |
 |---------------------|-----------------------|-------------------------|
 | Airflow UI          | http://localhost:8080 | airflow / airflow       |
-| Flower              | http://localhost:5555 | (profile: flower)       |
-| Marquez Web         | http://localhost:3000 | —                       |
-| Marquez API         | http://localhost:5000 | —                       |
+| Flower              | http://localhost:5555 | profile: flower         |
+| Marquez Web         | http://localhost:3000 | none                    |
+| Marquez API         | http://localhost:5000 | none                    |
 | MinIO Console       | http://localhost:9001 | minioadmin / minioadmin |
 | Mock ServiceNow API | http://localhost:8001 | admin / admin           |
 
-## Mock ServiceNow API
+## Azure Lab
 
-A local FastAPI service that mimics the [ServiceNow Table API](https://developer.servicenow.com/dev.do#!/reference/api/latest/rest/c_TableAPI), backed by DuckDB. Use it to develop and test Airflow DAGs that pull from ServiceNow without a real instance.
+The Terraform lab in `infra/terraform` provisions a small VM-based data
+infrastructure environment in Southeast Asia.
 
-**Supported tables:** `incident`, `problem`, `change_request`, `sys_user`, `cmdb_ci`
+Current shape:
 
-**Default dataset:** 1 million records per table (configurable via `MOCK_SN_TOTAL_RECORDS`). Generated on first startup using DuckDB SQL and persisted to a named Docker volume — subsequent restarts skip generation.
+- 3 Ubuntu VMs: `vm-01-control`, `vm-02-worker-a`, `vm-03-worker-b`
+- VM size: `Standard_D4as_v5`
+- 32 GiB OS disk and 64 GiB managed data disk per VM
+- Shared private VNet with static private IPs
+- Tailscale-first access
+- Jumpbox public IP disabled by default
+- NAT Gateway enabled for explicit outbound internet access
+- Daily shutdown and inactivity-based VM deallocation
 
-```bash
-# Fetch incidents
-curl -u admin:admin "http://localhost:8001/api/now/table/incident?sysparm_limit=10"
+Use it for Airflow, Dagster, Redis, PostgreSQL, ClickHouse, Cassandra, MongoDB,
+OpenMetadata, Prometheus, and Grafana practice.
 
-# Filter by field values
-curl -u admin:admin "http://localhost:8001/api/now/table/incident?sysparm_query=state=1^priority=2"
-
-# Project specific fields
-curl -u admin:admin "http://localhost:8001/api/now/table/incident?sysparm_fields=sys_id,number,state"
-
-# Paginate
-curl -u admin:admin "http://localhost:8001/api/now/table/incident?sysparm_limit=1000&sysparm_offset=50000"
-
-# Health check (no auth required)
-curl http://localhost:8001/health
-```
-
-To use the mock from inside the Docker network (e.g. from an Airflow DAG), set the ServiceNow base URL to `http://mock-servicenow:8000`.
-
-## Salesforce Synthetic Data Setup
-
-The repository includes a dedicated Salesforce setup for generating and loading synthetic pipeline data aligned to a hybrid Services + SaaS business model.
-
-Key locations:
-
-- `setup/context/BUSINESS_MODEL.md`
-- `setup/salesforce/README.md`
-- `setup/salesforce/docs/PIPELINE_ANALYTICS_PLAYBOOK.md`
-
-Typical workflow:
-
-```bash
-cd setup/salesforce
-make help
-make full-refresh TARGET_ORG=dev-org
-make analyze-year1 TARGET_ORG=dev-org START_DATE=2024-04-16 END_DATE=2025-04-16
-```
-
-Requirements for Salesforce workflow:
-
-- Salesforce CLI (`sf`)
-- Authenticated org alias (default expected by scripts: `dev-org`)
-- Run `uv sync` inside `setup/salesforce` to install local Snowfakery tooling
+See `infra/terraform/README.md` for setup, cost notes, teardown, and
+soft-delete cleanup.
 
 ## Development
 
 ```bash
-uv sync --dev          # Install all dependencies
-uv run pytest          # Run all tests
-uv run ruff check .    # Lint
-uv run ruff format .   # Format
+uv sync --dev
+uv run pytest
+uv run ruff check .
+uv run ruff format .
 ```
-
-## Adding DAGs
-
-Place `.py` files in `dags/`. Custom operators and providers go in `dags/plugins/operators/` and `dags/plugins/providers/`. The `dags/` directory is volume-mounted into all Airflow containers.
 
 ## License
 
-GNU General Public License v3 — see [LICENSE](LICENSE).
+GNU General Public License v3. See `LICENSE`.
