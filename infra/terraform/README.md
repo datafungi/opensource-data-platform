@@ -12,6 +12,8 @@ data infrastructure deployment and infrastructure as code.
 - Network: all VMs share one private virtual network
 - Access: expose as little as possible publicly; prefer one locked-down SSH
   entry point or a bastion-style access pattern
+- Outbound: NAT Gateway provides explicit outbound internet access; implicit
+  default outbound access is disabled on the VM subnet
 
 ## Workloads
 
@@ -34,6 +36,7 @@ Core resources:
 - Resource group
 - Virtual network
 - VM subnet
+- NAT Gateway with a static outbound public IP
 - Network security group
 - Network interfaces with stable private IPs
 - 3 Linux virtual machines
@@ -54,6 +57,8 @@ Cost and operations resources:
 Optional resources:
 
 - Public IP for a single jump host
+- NAT Gateway can be disabled with `enable_nat_gateway = false` if you accept
+  Azure default outbound access for a short-lived lab
 - Azure Bastion, if stronger managed access is preferred
 - Log Analytics workspace with short retention
 - Network Watcher flow logs for networking practice
@@ -76,8 +81,8 @@ pressure is expected when all services are running at the same time.
 
 Recommended starting point per VM:
 
-- OS disk: 64 GiB `StandardSSD_LRS`
-- Data disk: 128-256 GiB `StandardSSD_LRS`
+- OS disk: 32 GiB `StandardSSD_LRS`
+- Data disk: 64 GiB `StandardSSD_LRS`
 
 Database data should live on managed data disks, not on the OS disk or temporary
 local storage.
@@ -92,8 +97,9 @@ Assumptions:
 - VMs run for 20 hours per month total
 - VMs are deallocated when not in use
 - No public jumpbox IP because access uses Tailscale
-- 3 x 64 GiB Standard SSD OS disks
-- 3 x 256 GiB Standard SSD data disks
+- NAT Gateway enabled for explicit outbound internet access
+- 3 x 32 GiB Standard SSD OS disks
+- 3 x 64 GiB Standard SSD data disks
 - No meaningful Log Analytics ingestion
 - Minimal Key Vault, Storage Account, and Automation usage
 
@@ -102,8 +108,9 @@ Approximate monthly cost:
 | Resource                                  |             Quantity | Pricing basis                          | Estimated cost |
 |-------------------------------------------|---------------------:|----------------------------------------|---------------:|
 | Linux VMs, `Standard_D4as_v5`             |                    3 | `$0.216/hour x 20 hours`               |       `$12.96` |
-| 64 GiB Standard SSD OS disks, E6 LRS      |                    3 | `$4.80/month + $0.611/month mount`     |       `$16.23` |
-| 256 GiB Standard SSD data disks, E15 LRS  |                    3 | `$19.20/month + $2.379/month mount`    |       `$64.74` |
+| 32 GiB Standard SSD OS disks, E4 LRS      |                    3 | Lower Standard SSD tier                |          `~$8` |
+| 64 GiB Standard SSD data disks, E6 LRS    |                    3 | `$4.80/month + $0.611/month mount`     |       `$16.23` |
+| NAT Gateway and outbound public IP        |                    1 | Fixed hourly cost plus data processed  |     `~$35-$40` |
 | VNet, subnet, NSG, NICs, availability set |                1 set | No direct hourly charge                |        `$0.00` |
 | Public IP                                 |                    0 | Disabled for Tailscale access          |        `$0.00` |
 | Storage account, hot LRS blob storage     |              Minimal | About `$0.02/GB-month` plus operations |      `< $1.00` |
@@ -114,13 +121,14 @@ Approximate monthly cost:
 Expected monthly total:
 
 ```text
-About $95-$105/month
+About $75-$85/month
 ```
 
 Main cost drivers:
 
 - Managed disks continue billing while VMs are deallocated.
 - VM compute only bills while VMs are running.
+- NAT Gateway bills while it exists, even when VMs are deallocated.
 - Log Analytics can grow quickly if VM diagnostics or application logs are sent
   there.
 - Storage account cost depends on backup/export volume and operations.
@@ -131,8 +139,8 @@ If the jumpbox public IP is enabled later, add about:
 $0.005/hour x 730 hours = about $3.65/month
 ```
 
-To reduce the fixed monthly cost, lower `data_disk_size_gb` from `256` to `128`
-before the first apply.
+Increase `data_disk_size_gb` before the first apply if you expect to retain
+large local datasets, ClickHouse parts, or Cassandra SSTables.
 
 ## Shutdown Strategy
 
@@ -233,6 +241,8 @@ Add and apply these resources first:
 - `azurerm_resource_group`
 - `azurerm_virtual_network`
 - `azurerm_subnet`
+- `azurerm_nat_gateway`
+- `azurerm_public_ip` for NAT Gateway egress
 - `azurerm_network_security_group`
 - `azurerm_subnet_network_security_group_association`
 - `azurerm_key_vault`
@@ -258,6 +268,7 @@ terraform apply
 
 Add the VM resources next:
 
+- `azurerm_nat_gateway` and `azurerm_public_ip` for explicit outbound access
 - `azurerm_public_ip` for one jump host, if needed
 - `azurerm_network_interface` for each VM
 - `azurerm_linux_virtual_machine` for each VM
@@ -273,7 +284,7 @@ vm-03-worker-b: 10.10.1.12
 ```
 
 Use Ubuntu Server 24.04 LTS x64 Gen 2, SSH key authentication,
-`Standard_D4as_v5`, a 64 GiB OS disk, and one 128-256 GiB managed data disk per
+`Standard_D4as_v5`, a 32 GiB OS disk, and one 64 GiB managed data disk per
 VM.
 
 Cloud-init installs Docker and Tailscale on every VM. It installs Dokploy only
@@ -342,7 +353,10 @@ Check:
 
 - All 3 VMs are in Southeast Asia
 - Private IPs match the expected plan
-- SSH is restricted to the allowed CIDR range
+- Tailscale SSH works, or SSH is restricted to the allowed CIDR range when a
+  jumpbox public IP is enabled
+- The VM subnet has `default_outbound_access_enabled = false` when
+  `enable_nat_gateway = true`
 - Data disks are attached
 - Daily shutdown schedules are enabled
 - Budget alerts are configured
@@ -364,3 +378,15 @@ terraform destroy
 ```
 
 Before destroying, export any database dumps or test data that should be kept.
+
+Soft-delete cleanup checks after destroy:
+
+```bash
+az keyvault list-deleted --query "[?starts_with(name, 'kv-datafungi-lab')]"
+az monitor log-analytics workspace list-deleted-workspaces \
+  --query "[?name=='log-datafungi-lab']"
+```
+
+If a Log Analytics workspace remains recoverable, recover it, delete it with
+`--force true`, then delete the temporary resource group. Key Vault purge is
+handled by the AzureRM provider features block when permissions allow it.

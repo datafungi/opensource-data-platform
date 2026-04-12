@@ -26,6 +26,11 @@ output "jumpbox_public_ip" {
   value       = var.create_jumpbox_public_ip ? azurerm_public_ip.jumpbox[0].ip_address : null
 }
 
+output "nat_gateway_public_ip" {
+  description = "Public outbound egress IP address used by the VM subnet when NAT Gateway is enabled."
+  value       = var.enable_nat_gateway ? azurerm_public_ip.nat_gateway[0].ip_address : null
+}
+
 output "ssh_to_control_vm" {
   description = "SSH command for the control VM when the jumpbox public IP is enabled."
   value       = var.create_jumpbox_public_ip ? "ssh ${var.admin_username}@${azurerm_public_ip.jumpbox[0].ip_address}" : null
