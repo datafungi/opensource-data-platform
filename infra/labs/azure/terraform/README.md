@@ -87,6 +87,10 @@ Recommended starting point per VM:
 Database data should live on managed data disks, not on the OS disk or temporary
 local storage.
 
+For shared Docker Swarm storage, mount a replicated GlusterFS volume at the
+same path on all three VMs and use that path as a Swarm bind mount source. See
+[GlusterFS Storage For Docker Swarm](../docs/glusterfs-swarm-storage.md).
+
 ## Estimated Monthly Cost
 
 Estimate date: 2026-04-12. Region: Southeast Asia. Currency: USD.
@@ -292,6 +296,56 @@ on `vm-01-control` when `install_dokploy_on_control_vm` is enabled. Tailscale
 must still be authenticated after provisioning with an auth key or interactive
 login.
 
+### 5.1. Authenticate Tailscale
+
+Cloud-init installs and starts `tailscaled`, but it does not join the VMs to
+your tailnet. Create a Tailscale auth key in the admin console, then authenticate
+each VM.
+
+If `create_jumpbox_public_ip = false`, use Azure Run Command because the VMs do
+not have a public SSH entry point yet:
+
+```bash
+export TS_AUTHKEY="tskey-auth-..."
+
+az vm run-command invoke \
+  --resource-group "rg-datafungi-lab" \
+  --name "vm-01-control" \
+  --command-id RunShellScript \
+  --scripts "sudo tailscale up --auth-key '${TS_AUTHKEY}' --ssh --hostname vm-01-control"
+
+az vm run-command invoke \
+  --resource-group "rg-datafungi-lab" \
+  --name "vm-02-worker-a" \
+  --command-id RunShellScript \
+  --scripts "sudo tailscale up --auth-key '${TS_AUTHKEY}' --ssh --hostname vm-02-worker-a"
+
+az vm run-command invoke \
+  --resource-group "rg-datafungi-lab" \
+  --name "vm-03-worker-b" \
+  --command-id RunShellScript \
+  --scripts "sudo tailscale up --auth-key '${TS_AUTHKEY}' --ssh --hostname vm-03-worker-b"
+```
+
+If a jumpbox public IP or Azure Bastion is available, SSH to each VM and run the
+same command locally:
+
+```bash
+sudo tailscale up --auth-key "$TS_AUTHKEY" --ssh --hostname vm-01-control
+```
+
+Use the matching hostname on each VM. Do not commit auth keys to Terraform
+variables, scripts, or documentation. After authentication, verify the nodes
+from your workstation:
+
+```bash
+tailscale status
+tailscale ssh azureuser@vm-01-control
+```
+
+Tailscale SSH also requires the tailnet policy to allow your user or group to
+SSH to these devices.
+
 ### 6. Add Shutdown Controls
 
 Add daily shutdown first:
@@ -326,6 +380,10 @@ installation:
 - Docker Compose for the first version
 - Ansible once the service layout stabilizes
 - Kubernetes only after the VM-based layout is understood
+
+For Swarm services that need shared files, set up GlusterFS first and mount it
+at `/mnt/gluster/swarm` on all nodes. Use service-specific subdirectories under
+`/mnt/gluster/swarm/services`.
 
 Recommended order:
 
