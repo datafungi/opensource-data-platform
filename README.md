@@ -21,9 +21,10 @@ optional Azure Terraform lab for practicing infrastructure deployment.
 .
 ├── dags/                  # Airflow DAGs and custom plugins
 ├── infra/
-│   ├── docker/            # Airflow, Postgres, ClickHouse, MinIO, Marquez, mock APIs
-│   ├── scripts/           # Azure VM start/stop helpers
-│   └── terraform/         # Azure data infrastructure lab
+│   ├── docker/            # Local Docker Compose services
+│   ├── labs/
+│   │   └── azure/         # Azure VM, Docker Swarm, and Terraform practice lab
+│   └── production/        # Production infrastructure placeholders
 ├── tests/
 ├── pyproject.toml
 └── Makefile
@@ -69,7 +70,7 @@ make up component=mock-servicenow
 
 ## Azure Lab
 
-The Terraform lab in `infra/terraform` provisions a small VM-based data
+The Terraform lab in `infra/labs/azure/terraform` provisions a small VM-based data
 infrastructure environment in Southeast Asia.
 
 Current shape:
@@ -86,7 +87,8 @@ Current shape:
 Use it for Airflow, Dagster, Redis, PostgreSQL, ClickHouse, Cassandra, MongoDB,
 OpenMetadata, Prometheus, and Grafana practice.
 
-See `infra/terraform/README.md` for setup, cost notes, teardown, and
+See `infra/labs/azure/README.md` for the lab overview and
+`infra/labs/azure/terraform/README.md` for setup, cost notes, teardown, and
 soft-delete cleanup.
 
 ## Development

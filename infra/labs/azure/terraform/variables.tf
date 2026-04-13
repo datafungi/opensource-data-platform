@@ -55,7 +55,7 @@ variable "vm_subnet_address_prefix" {
 variable "vm_size" {
   description = "Azure VM size for all lab VMs."
   type        = string
-  default     = "Standard_D4as_v5"
+  default     = "Standard_D2as_v5"
 }
 
 variable "os_disk_size_gb" {
