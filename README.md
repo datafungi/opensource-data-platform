@@ -11,7 +11,6 @@ optional Azure Terraform lab for practicing infrastructure deployment.
 - ClickHouse
 - Marquez and OpenLineage
 - MinIO
-- Mock ServiceNow API
 - Docker Compose
 - Terraform for the Azure lab
 
@@ -21,10 +20,6 @@ optional Azure Terraform lab for practicing infrastructure deployment.
 .
 ├── dags/                  # Airflow DAGs and custom plugins
 ├── infra/
-│   ├── docker/            # Local Docker Compose services
-│   ├── labs/
-│   │   └── azure/         # Azure VM, Docker Swarm, and Terraform practice lab
-│   └── production/        # Production infrastructure placeholders
 ├── tests/
 ├── pyproject.toml
 └── Makefile
