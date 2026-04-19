@@ -1,0 +1,36 @@
+# Copy this file to terraform.tfvars and fill in your values.
+# terraform.tfvars is git-ignored — never commit it.
+
+# ── Azure region ──────────────────────────────────────────────────────────────
+location = "southeastasia"
+
+# ── Environment / naming ──────────────────────────────────────────────────────
+# Allowed: dev | staging | prod
+environment = "dev"
+project     = "data-platform"
+
+# ── VM sizing ─────────────────────────────────────────────────────────────────
+# Standard_D4s_v5 = 4 vCPU, 16 GiB RAM (~$140/month PAYG per VM in East US)
+# Downsize to Standard_D2s_v5 (2 vCPU, 8 GiB) for non-production to save ~50%.
+vm_size        = "Standard_D4s_v5"
+admin_username = "azureuser"
+
+# ── Bastion / SSH CIDR ────────────────────────────────────────────────────────
+# Option A (recommended for production): Azure Bastion — adds ~$140/month
+# enable_bastion   = true
+# allowed_ssh_cidr = ""
+
+# Option B (dev / cost-conscious): NSG-restricted direct SSH
+enable_bastion   = false
+allowed_ssh_cidr = "203.0.113.0/24" # Replace with your public IP or CIDR
+
+# ── Storage ───────────────────────────────────────────────────────────────────
+backup_retention_days = 30
+data_disk_size_gb     = 256 # GiB; Premium SSD P15 tier
+
+# ── Tags ──────────────────────────────────────────────────────────────────────
+tags = {
+  owner = "your-name"
+  repo  = "opensource-data-platform"
+  cost_center = "personal"
+}
