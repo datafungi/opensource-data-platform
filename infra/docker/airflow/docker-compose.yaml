@@ -76,8 +76,8 @@ x-airflow-common: &airflow-common
     - data-platform
   volumes:
     - ./dags:/opt/airflow/dags
-    - ./docker/airflow/logs:/opt/airflow/logs
-    - ./docker/airflow/config:/opt/airflow/config
+    - ./infra/docker/airflow/logs:/opt/airflow/logs
+    - ./infra/docker/airflow/config:/opt/airflow/config
   user: "${AIRFLOW_UID:-50000}:0"
   env_file:
     - .env
