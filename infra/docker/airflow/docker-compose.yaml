@@ -50,8 +50,8 @@ x-airflow-common: &airflow-common
   # and uncomment the "build" line below, Then run `docker-compose build` to build the images.
   build:
     context: .
-    dockerfile: docker/airflow/Dockerfile
-  image: extended_airflow:3.1.7-python3.12
+    dockerfile: infra/docker/airflow/Dockerfile
+  image: localairflow:latest
   pull_policy: never
   environment: &airflow-common-env
     AIRFLOW__CORE__EXECUTOR: CeleryExecutor
@@ -76,8 +76,8 @@ x-airflow-common: &airflow-common
     - data-platform
   volumes:
     - ./dags:/opt/airflow/dags
-    - ./docker/airflow/logs:/opt/airflow/logs
-    - ./docker/airflow/config:/opt/airflow/config
+    - ./infra/docker/airflow/logs:/opt/airflow/logs
+    - ./infra/docker/airflow/config:/opt/airflow/config
   user: "${AIRFLOW_UID:-50000}:0"
   env_file:
     - .env
@@ -112,8 +112,8 @@ services:
     <<: *airflow-common
     build:
       context: .
-      dockerfile: docker/airflow/Dockerfile
-    image: extended_airflow:3.1.7-python3.12
+      dockerfile: infra/docker/airflow/Dockerfile
+    image: localairflow:latest
     command: api-server
     cpus: "0.25"
     mem_limit: 1G
@@ -279,13 +279,16 @@ services:
         echo
         mkdir -v -p /opt/airflow/{logs,dags,config}
         echo
+        echo "Airflow version:"
+        /entrypoint airflow version
+        echo
         echo "Files in shared volumes:"
         echo
         ls -la /opt/airflow/{logs,dags,config}
         echo
         echo "Running airflow config list to create default config file if missing."
         echo
-        [ ! -f "$$AIRFLOW_CONFIG" ] && /entrypoint airflow config list >/dev/null || echo "Config file already exists, skipping."
+        /entrypoint airflow config list >/dev/null
         echo
         echo "Files in shared volumes:"
         echo
@@ -300,7 +303,7 @@ services:
         chown -v -R "${AIRFLOW_UID}:0" /opt/airflow/{logs,dags,config}
         echo "Allow editing"
         echo
-        chmod 777 /opt/airflow/{logs,dags,config}
+        chmod -R 777 /opt/airflow/{logs,dags,config}
         echo
         echo "Files in shared volumes:"
         echo
