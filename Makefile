@@ -1,9 +1,8 @@
-POSTGRES_COMPOSE    := infra/docker/postgres/docker-compose.yaml
-AIRFLOW_COMPOSE     := infra/docker/airflow/docker-compose.yaml
-MARQUEZ_COMPOSE     := infra/docker/marquez/docker-compose.yaml
-MINIO_COMPOSE       := infra/docker/minio/docker-compose.yaml
-MOCK_SN_COMPOSE     := infra/docker/mock-servicenow/docker-compose.yaml
-CLICKHOUSE_COMPOSE  := infra/docker/clickhouse/single-node/docker-compose.yaml
+POSTGRES_COMPOSE    := infra/docker/local/postgres/docker-compose.yaml
+AIRFLOW_COMPOSE     := infra/docker/local/airflow/docker-compose.yaml
+MARQUEZ_COMPOSE     := infra/docker/local/marquez/docker-compose.yaml
+MINIO_COMPOSE       := infra/docker/local/minio/docker-compose.yaml
+CLICKHOUSE_COMPOSE  := infra/docker/local/clickhouse/single-node/docker-compose.yaml
 AIRFLOW_IMAGE       := localairflow:latest
 
 # Compose files per component (dependencies included)
@@ -11,7 +10,6 @@ COMPOSE_FILES_postgres         := $(POSTGRES_COMPOSE)
 COMPOSE_FILES_airflow          := $(POSTGRES_COMPOSE) $(AIRFLOW_COMPOSE)
 COMPOSE_FILES_marquez          := $(POSTGRES_COMPOSE) $(MARQUEZ_COMPOSE)
 COMPOSE_FILES_minio            := $(MINIO_COMPOSE)
-COMPOSE_FILES_mock-servicenow  := $(MOCK_SN_COMPOSE)
 COMPOSE_FILES_clickhouse       := $(CLICKHOUSE_COMPOSE)
 ALL_COMPOSE_FILES              := $(POSTGRES_COMPOSE) $(AIRFLOW_COMPOSE) $(MARQUEZ_COMPOSE) $(MINIO_COMPOSE) $(CLICKHOUSE_COMPOSE)
 
@@ -39,7 +37,7 @@ COMPOSE = docker compose --project-directory . $(foreach f,$(SELECTED_FILES),-f 
 .PHONY: build up down clean
 
 build:
-	docker build -t $(AIRFLOW_IMAGE) docker/airflow
+	docker build -t $(AIRFLOW_IMAGE) infra/docker/images/airflow
 
 up:
 	docker network create data-platform 2>/dev/null || true
