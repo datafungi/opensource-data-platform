@@ -2,7 +2,6 @@ POSTGRES_COMPOSE    := infra/docker/local/postgres/docker-compose.yaml
 AIRFLOW_COMPOSE     := infra/docker/local/airflow/docker-compose.yaml
 MARQUEZ_COMPOSE     := infra/docker/local/marquez/docker-compose.yaml
 MINIO_COMPOSE       := infra/docker/local/minio/docker-compose.yaml
-MOCK_SN_COMPOSE     := infra/docker/local/mock-servicenow/docker-compose.yaml
 CLICKHOUSE_COMPOSE  := infra/docker/local/clickhouse/single-node/docker-compose.yaml
 AIRFLOW_IMAGE       := localairflow:latest
 
@@ -11,7 +10,6 @@ COMPOSE_FILES_postgres         := $(POSTGRES_COMPOSE)
 COMPOSE_FILES_airflow          := $(POSTGRES_COMPOSE) $(AIRFLOW_COMPOSE)
 COMPOSE_FILES_marquez          := $(POSTGRES_COMPOSE) $(MARQUEZ_COMPOSE)
 COMPOSE_FILES_minio            := $(MINIO_COMPOSE)
-COMPOSE_FILES_mock-servicenow  := $(MOCK_SN_COMPOSE)
 COMPOSE_FILES_clickhouse       := $(CLICKHOUSE_COMPOSE)
 ALL_COMPOSE_FILES              := $(POSTGRES_COMPOSE) $(AIRFLOW_COMPOSE) $(MARQUEZ_COMPOSE) $(MINIO_COMPOSE) $(CLICKHOUSE_COMPOSE)
 
