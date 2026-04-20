@@ -50,7 +50,7 @@ x-airflow-common: &airflow-common
   # and uncomment the "build" line below, Then run `docker-compose build` to build the images.
   build:
     context: .
-    dockerfile: infra/docker/airflow/Dockerfile
+    dockerfile: infra/docker/images/airflow/Dockerfile
   image: localairflow:latest
   pull_policy: never
   environment: &airflow-common-env
@@ -76,8 +76,8 @@ x-airflow-common: &airflow-common
     - data-platform
   volumes:
     - ./dags:/opt/airflow/dags
-    - ./infra/docker/airflow/logs:/opt/airflow/logs
-    - ./infra/docker/airflow/config:/opt/airflow/config
+    - ./infra/docker/local/airflow/logs:/opt/airflow/logs
+    - ./infra/docker/local/airflow/config:/opt/airflow/config
   user: "${AIRFLOW_UID:-50000}:0"
   env_file:
     - .env
@@ -112,7 +112,7 @@ services:
     <<: *airflow-common
     build:
       context: .
-      dockerfile: infra/docker/airflow/Dockerfile
+      dockerfile: infra/docker/images/airflow/Dockerfile
     image: localairflow:latest
     command: api-server
     cpus: "0.25"
