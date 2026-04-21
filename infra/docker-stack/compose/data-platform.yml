@@ -34,7 +34,6 @@
 #
 # SECRETS CREATION (run on any manager node before deploying):
 #   echo "strongpassword"  | docker secret create postgres_airflow_password -
-#   echo "strongpassword"  | docker secret create marquez_db_password -
 #   echo "strongpassword"  | docker secret create redis_password -
 #   echo "strongpassword"  | docker secret create grafana_admin_password -
 #   python3 -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())" \
@@ -67,13 +66,8 @@ services:
       POSTGRES_USER: airflow
       POSTGRES_PASSWORD_FILE: /run/secrets/postgres_airflow_password
       POSTGRES_DB: airflow
-      # Marquez DB created for future use; Marquez service is not deployed in prod.
-      MARQUEZ_DB: marquez
-      MARQUEZ_USER: marquez
-      MARQUEZ_PASSWORD_FILE: /run/secrets/marquez_db_password
     secrets:
       - postgres_airflow_password
-      - marquez_db_password
     configs:
       - source: postgres_init_db
         target: /docker-entrypoint-initdb.d/init-db.sh
@@ -819,15 +813,12 @@ configs:
 #
 # Secrets used in this stack:
 #   postgres_airflow_password — PostgreSQL POSTGRES_PASSWORD_FILE
-#   marquez_db_password       — PostgreSQL MARQUEZ_PASSWORD_FILE (future use)
 #   redis_password            — Redis requirepass + redis-exporter auth
 #   airflow_fernet_key        — AIRFLOW__CORE__FERNET_KEY_FILE (all Airflow services)
 #   grafana_admin_password    — GF_SECURITY_ADMIN_PASSWORD_FILE
 # =============================================================================
 secrets:
   postgres_airflow_password:
-    external: true
-  marquez_db_password:
     external: true
   redis_password:
     external: true
