@@ -1,6 +1,6 @@
 locals {
   node_count  = 3
-  private_ips = ["10.0.1.10", "10.0.1.11", "10.0.1.12"]
+  private_ips = ["10.54.1.10", "10.54.1.11", "10.54.1.12"]
 }
 
 # ── Public IP (node-1 only) ───────────────────────────────────────────────────
@@ -54,8 +54,8 @@ resource "azurerm_linux_virtual_machine" "nodes" {
   os_disk {
     name                 = "${var.name_prefix}-node-${count.index + 1}-os"
     caching              = "ReadWrite"
-    storage_account_type = "StandardSSD_LRS"
-    disk_size_gb         = 128
+    storage_account_type = "Premium_LRS"
+    disk_size_gb         = 30
   }
 
   source_image_reference {

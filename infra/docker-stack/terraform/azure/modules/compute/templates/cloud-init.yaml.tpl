@@ -4,7 +4,7 @@
 #            key_vault_name, backup_storage_account_name, backup_container_name
 
 package_update: true
-package_upgrade: false
+package_upgrade: true
 
 packages:
   - xfsprogs
@@ -108,22 +108,20 @@ write_files:
 
       echo "[node-setup] Swarm initialised, tokens stored in Key Vault"
 
-      # ── 7. Install Dokploy (node-1 only) ──────────────────────────────────
-      # Dokploy provides a web-based deployment UI for managing Docker services.
-      # Its default port (3000) conflicts with Grafana on the Swarm routing mesh,
-      # so we remap the host binding to 3001 after the install script runs.
-      echo "[node-setup] Installing Dokploy..."
-      curl -sSL https://dokploy.com/install.sh | sh
-
-      DOKPLOY_COMPOSE=/etc/dokploy/docker-compose.yml
-      if [ -f "$DOKPLOY_COMPOSE" ]; then
-        docker compose -f "$DOKPLOY_COMPOSE" down || true
-        sed -i 's/"3000:3000"/"3001:3000"/g' "$DOKPLOY_COMPOSE"
-        docker compose -f "$DOKPLOY_COMPOSE" up -d
-        echo "[node-setup] Dokploy remapped to port 3001"
-      else
-        echo "[node-setup] WARNING: Dokploy compose file not found at $DOKPLOY_COMPOSE — port remap skipped"
-      fi
+      # ── 7. Install Portainer (node-1 only) ──────────────────────────────────────
+      # Portainer is deployed as a Swarm service constrained to manager nodes.
+      # Port 9443 (HTTPS) is the Portainer web UI.
+      echo "[node-setup] Installing Portainer..."
+      docker volume create portainer_data
+      docker service create \
+        --name portainer \
+        --constraint 'node.role == manager' \
+        --publish mode=ingress,target=9443,published=9443,protocol=tcp \
+        --replicas 1 \
+        --mount type=bind,src=/var/run/docker.sock,dst=/var/run/docker.sock \
+        --mount type=volume,src=portainer_data,dst=/data \
+        portainer/portainer-ce:latest
+      echo "[node-setup] Portainer deployed on port 9443"
       %{~ else }
       # node-2 / node-3: poll Key Vault until node-1 has stored the manager
       # join token, then join the Swarm. Maximum wait: 30 × 20s = 10 minutes.
@@ -157,11 +155,9 @@ write_files:
       echo "[node-setup] Successfully joined Swarm"
       %{~ endif }
 
-      # ── 7. Persist backup env vars for cron containers ────────────────────
-      cat >> /etc/environment <<EOF
-      BACKUP_STORAGE_ACCOUNT=${backup_storage_account_name}
-      BACKUP_CONTAINER=${backup_container_name}
-      EOF
+      # ── 8. Persist backup env vars for cron containers ────────────────────
+      echo "BACKUP_STORAGE_ACCOUNT=${backup_storage_account_name}" >> /etc/environment
+      echo "BACKUP_CONTAINER=${backup_container_name}" >> /etc/environment
 
       echo "[node-setup] Completed at $(date -u)"
 

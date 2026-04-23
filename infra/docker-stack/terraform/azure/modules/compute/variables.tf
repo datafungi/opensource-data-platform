@@ -15,7 +15,7 @@ variable "name_prefix" {
 
 variable "vm_size" {
   type        = string
-  default     = "Standard_D4s_v5"
+  default     = "Standard_D2as_v5"
   description = "Azure VM SKU for all three cluster nodes."
 }
 
@@ -38,7 +38,7 @@ variable "subnet_id" {
 
 variable "data_disk_size_gb" {
   type        = number
-  default     = 256
+  default     = 32
   description = "Size in GiB of the GlusterFS brick data disk (Premium SSD) per node."
 }
 

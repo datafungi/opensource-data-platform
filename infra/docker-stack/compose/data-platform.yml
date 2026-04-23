@@ -1,0 +1,828 @@
+# Docker Swarm Production Stack — Data Platform
+#
+# Deploy: docker stack deploy -c data-platform.yml data-platform
+# On cluster: copy to /opt/stacks/data-platform.yml on node-1
+#
+# PRE-DEPLOY CHECKLIST:
+#   1. Replace ghcr.io/YOUR_ORG/airflow:3.1.7-YYYYMMDD with actual GHCR image tag
+#      e.g. ghcr.io/acme-corp/airflow:3.1.7-20260420
+#   2. Create all external secrets on any manager node (see SECRETS CREATION below)
+#   3. Label nodes before deploying:
+#        docker node update --label-add stateful=true  <node-1-id>
+#        docker node update --label-add nodename=node1 <node-1-id>
+#        docker node update --label-add nodename=node2 <node-2-id>
+#        docker node update --label-add nodename=node3 <node-3-id>
+#   4. Run bootstrap-gluster.sh on node-1 if not already done (required before postgres starts)
+#   5. Run DB migration and admin user creation BEFORE deploying the stack:
+#        docker run --rm --network data-platform \
+#          -e AIRFLOW__CORE__EXECUTOR=CeleryExecutor \
+#          -e AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql+psycopg2://airflow:PASSWORD@postgres/airflow \
+#          -e AIRFLOW__CORE__FERNET_KEY=REPLACE_WITH_FERNET_KEY \
+#          ghcr.io/YOUR_ORG/airflow:3.1.7-YYYYMMDD airflow db migrate
+#        docker run --rm --network data-platform \
+#          -e AIRFLOW__CORE__EXECUTOR=CeleryExecutor \
+#          -e AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql+psycopg2://airflow:PASSWORD@postgres/airflow \
+#          -e AIRFLOW__CORE__FERNET_KEY=REPLACE_WITH_FERNET_KEY \
+#          ghcr.io/YOUR_ORG/airflow:3.1.7-YYYYMMDD airflow users create \
+#            --username admin --firstname Admin --lastname User \
+#            --role Admin --email admin@example.com --password CHANGE_ME
+#   6. Verify GlusterFS bind-mount directories exist on all nodes:
+#        /mnt/gluster/postgres-data
+#        /mnt/gluster/redis-data
+#        /mnt/gluster/polaris-data
+#        /mnt/gluster/prometheus-data
+#
+# SECRETS CREATION (run on any manager node before deploying):
+#   echo "strongpassword"  | docker secret create postgres_airflow_password -
+#   echo "strongpassword"  | docker secret create redis_password -
+#   echo "strongpassword"  | docker secret create grafana_admin_password -
+#   python3 -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())" \
+#     | docker secret create airflow_fernet_key -
+#
+# NOTE: Airflow DB and Redis connection strings contain CHANGE_ME password placeholders.
+# Production hardening: replace CHANGE_ME values with an entrypoint wrapper that reads
+# passwords from /run/secrets/* at container start. The Fernet key is already properly
+# injected via AIRFLOW__CORE__FERNET_KEY_FILE=/run/secrets/airflow_fernet_key.
+#
+# SECURITY NOTE (T-bns-01): Connection strings are visible in `docker inspect` output.
+# This is acceptable for an internal overlay network. To harden further, implement a
+# custom entrypoint that builds connection strings from secret files at startup.
+#
+# DAG DEPLOYMENT: DAGs are baked into the Airflow image at build time.
+# Rebuild and redeploy the airflow-* services to update DAGs.
+
+version: "3.9"
+
+services:
+
+  # ---------------------------------------------------------------------------
+  # POSTGRES — shared metadata database for Airflow (and Marquez, future use)
+  # Pinned to a node labelled stateful=true via node label.
+  # GlusterFS provides data persistence across node failures.
+  # ---------------------------------------------------------------------------
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: airflow
+      POSTGRES_PASSWORD_FILE: /run/secrets/postgres_airflow_password
+      POSTGRES_DB: airflow
+    secrets:
+      - postgres_airflow_password
+    configs:
+      - source: postgres_init_db
+        target: /docker-entrypoint-initdb.d/init-db.sh
+        mode: 0755
+    volumes:
+      - /mnt/gluster/postgres-data:/var/lib/postgresql/data
+    networks:
+      - data-platform
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "airflow"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+    deploy:
+      replicas: 1
+      placement:
+        constraints:
+          - node.labels.stateful == true
+      resources:
+        limits:
+          cpus: "0.35"
+          memory: 1G
+        reservations:
+          cpus: "0.20"
+          memory: 512M
+      update_config:
+        parallelism: 1
+        delay: 15s
+        failure_action: rollback
+        order: stop-first
+      rollback_config:
+        parallelism: 1
+        delay: 10s
+      restart_policy:
+        condition: on-failure
+        delay: 10s
+        max_attempts: 3
+
+  # ---------------------------------------------------------------------------
+  # REDIS — Celery message broker
+  # Pinned to node-2. Password read from secret at container start.
+  # SECURITY NOTE (T-bns-02): password visible in process args via `docker inspect`;
+  # acceptable for internal cluster traffic.
+  # ---------------------------------------------------------------------------
+  redis:
+    image: redis:7.2-bookworm
+    # Read password from Docker secret at start; avoids storing it in env vars.
+    command: >
+      sh -c 'redis-server --requirepass "$$(cat /run/secrets/redis_password)" --appendonly yes'
+    secrets:
+      - redis_password
+    volumes:
+      - /mnt/gluster/redis-data:/data
+    networks:
+      - data-platform
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 30s
+      retries: 50
+      start_period: 30s
+    deploy:
+      replicas: 1
+      placement:
+        constraints:
+          - node.labels.nodename == node2
+      resources:
+        limits:
+          cpus: "0.15"
+          memory: 256M
+        reservations:
+          cpus: "0.05"
+          memory: 128M
+      update_config:
+        parallelism: 1
+        delay: 15s
+        failure_action: rollback
+        order: stop-first
+      rollback_config:
+        parallelism: 1
+        delay: 10s
+      restart_policy:
+        condition: on-failure
+        delay: 10s
+        max_attempts: 3
+
+  # ---------------------------------------------------------------------------
+  # AIRFLOW API SERVER — REST API + Web UI
+  # 2 replicas, any node. Stateless; safe for rolling updates.
+  # DAGs are baked into the image — rebuild to update.
+  # Replace ghcr.io/YOUR_ORG/airflow:3.1.7-YYYYMMDD before deploying.
+  # ---------------------------------------------------------------------------
+  airflow-apiserver:
+    image: ghcr.io/YOUR_ORG/airflow:3.1.7-YYYYMMDD  # Replace with actual GHCR image tag
+    command: api-server
+    environment:
+      AIRFLOW__CORE__EXECUTOR: CeleryExecutor
+      AIRFLOW__CORE__AUTH_MANAGER: airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager
+      # CHANGE_ME: replace with actual password or implement entrypoint wrapper reading from secret
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:CHANGE_ME@postgres/airflow
+      AIRFLOW__CELERY__RESULT_BACKEND: db+postgresql://airflow:CHANGE_ME@postgres/airflow
+      AIRFLOW__CELERY__BROKER_URL: redis://:CHANGE_ME@redis:6379/0
+      AIRFLOW__CORE__FERNET_KEY_FILE: /run/secrets/airflow_fernet_key
+      AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: "true"
+      AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+      AIRFLOW__CORE__EXECUTION_API_SERVER_URL: "http://airflow-apiserver:8080/execution/"
+      AIRFLOW__SCHEDULER__ENABLE_HEALTH_CHECK: "true"
+      AIRFLOW_CONFIG: "/opt/airflow/config/airflow.cfg"
+      AIRFLOW__METRICS__STATSD_ON: "true"
+      AIRFLOW__METRICS__STATSD_HOST: statsd-exporter
+      AIRFLOW__METRICS__STATSD_PORT: "9125"
+    secrets:
+      - airflow_fernet_key
+    ports:
+      - "8080:8080"
+    networks:
+      - data-platform
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://localhost:8080/api/v2/version"]
+      interval: 30s
+      timeout: 120s
+      retries: 5
+      start_period: 180s
+    deploy:
+      replicas: 2
+      resources:
+        limits:
+          cpus: "0.25"
+          memory: 1G
+        reservations:
+          cpus: "0.10"
+          memory: 512M
+      update_config:
+        parallelism: 1
+        delay: 15s
+        failure_action: rollback
+        order: start-first
+      rollback_config:
+        parallelism: 1
+        delay: 10s
+      restart_policy:
+        condition: on-failure
+        delay: 10s
+        max_attempts: 3
+
+  # ---------------------------------------------------------------------------
+  # AIRFLOW SCHEDULER — DAG scheduling, task queuing to Redis
+  # 1 replica, pinned to node-1.
+  # ---------------------------------------------------------------------------
+  airflow-scheduler:
+    image: ghcr.io/YOUR_ORG/airflow:3.1.7-YYYYMMDD  # Replace with actual GHCR image tag
+    command: scheduler
+    environment:
+      AIRFLOW__CORE__EXECUTOR: CeleryExecutor
+      AIRFLOW__CORE__AUTH_MANAGER: airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:CHANGE_ME@postgres/airflow
+      AIRFLOW__CELERY__RESULT_BACKEND: db+postgresql://airflow:CHANGE_ME@postgres/airflow
+      AIRFLOW__CELERY__BROKER_URL: redis://:CHANGE_ME@redis:6379/0
+      AIRFLOW__CORE__FERNET_KEY_FILE: /run/secrets/airflow_fernet_key
+      AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: "true"
+      AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+      AIRFLOW__CORE__EXECUTION_API_SERVER_URL: "http://airflow-apiserver:8080/execution/"
+      AIRFLOW__SCHEDULER__ENABLE_HEALTH_CHECK: "true"
+      AIRFLOW_CONFIG: "/opt/airflow/config/airflow.cfg"
+      AIRFLOW__METRICS__STATSD_ON: "true"
+      AIRFLOW__METRICS__STATSD_HOST: statsd-exporter
+      AIRFLOW__METRICS__STATSD_PORT: "9125"
+    secrets:
+      - airflow_fernet_key
+    networks:
+      - data-platform
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://localhost:8974/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 90s
+    deploy:
+      replicas: 1
+      placement:
+        constraints:
+          - node.labels.nodename == node1
+      resources:
+        limits:
+          cpus: "0.40"
+          memory: 1536M
+        reservations:
+          cpus: "0.20"
+          memory: 768M
+      update_config:
+        parallelism: 1
+        delay: 15s
+        failure_action: rollback
+        order: stop-first
+      rollback_config:
+        parallelism: 1
+        delay: 10s
+      restart_policy:
+        condition: on-failure
+        delay: 10s
+        max_attempts: 3
+
+  # ---------------------------------------------------------------------------
+  # AIRFLOW DAG PROCESSOR — parses DAG files, no scheduling
+  # 1 replica, pinned to node-1.
+  # ---------------------------------------------------------------------------
+  airflow-dag-processor:
+    image: ghcr.io/YOUR_ORG/airflow:3.1.7-YYYYMMDD  # Replace with actual GHCR image tag
+    command: dag-processor
+    environment:
+      AIRFLOW__CORE__EXECUTOR: CeleryExecutor
+      AIRFLOW__CORE__AUTH_MANAGER: airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:CHANGE_ME@postgres/airflow
+      AIRFLOW__CELERY__RESULT_BACKEND: db+postgresql://airflow:CHANGE_ME@postgres/airflow
+      AIRFLOW__CELERY__BROKER_URL: redis://:CHANGE_ME@redis:6379/0
+      AIRFLOW__CORE__FERNET_KEY_FILE: /run/secrets/airflow_fernet_key
+      AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: "true"
+      AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+      AIRFLOW__CORE__EXECUTION_API_SERVER_URL: "http://airflow-apiserver:8080/execution/"
+      AIRFLOW__SCHEDULER__ENABLE_HEALTH_CHECK: "true"
+      AIRFLOW_CONFIG: "/opt/airflow/config/airflow.cfg"
+      AIRFLOW__METRICS__STATSD_ON: "true"
+      AIRFLOW__METRICS__STATSD_HOST: statsd-exporter
+      AIRFLOW__METRICS__STATSD_PORT: "9125"
+    secrets:
+      - airflow_fernet_key
+    networks:
+      - data-platform
+    healthcheck:
+      test:
+        - "CMD-SHELL"
+        - 'airflow jobs check --job-type DagProcessorJob --hostname "$${HOSTNAME}"'
+      interval: 30s
+      timeout: 120s
+      retries: 5
+      start_period: 30s
+    deploy:
+      replicas: 1
+      placement:
+        constraints:
+          - node.labels.nodename == node1
+      resources:
+        limits:
+          cpus: "0.25"
+          memory: 1G
+        reservations:
+          cpus: "0.10"
+          memory: 512M
+      update_config:
+        parallelism: 1
+        delay: 15s
+        failure_action: rollback
+        order: stop-first
+      rollback_config:
+        parallelism: 1
+        delay: 10s
+      restart_policy:
+        condition: on-failure
+        delay: 10s
+        max_attempts: 3
+
+  # ---------------------------------------------------------------------------
+  # AIRFLOW WORKER — Celery task executor
+  # mode: global — 1 worker per node (3 total across the 3-node cluster).
+  # DUMB_INIT_SETSID=0 ensures proper warm shutdown signal propagation.
+  # ---------------------------------------------------------------------------
+  airflow-worker:
+    image: ghcr.io/YOUR_ORG/airflow:3.1.7-YYYYMMDD  # Replace with actual GHCR image tag
+    command: celery worker
+    environment:
+      AIRFLOW__CORE__EXECUTOR: CeleryExecutor
+      AIRFLOW__CORE__AUTH_MANAGER: airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:CHANGE_ME@postgres/airflow
+      AIRFLOW__CELERY__RESULT_BACKEND: db+postgresql://airflow:CHANGE_ME@postgres/airflow
+      AIRFLOW__CELERY__BROKER_URL: redis://:CHANGE_ME@redis:6379/0
+      AIRFLOW__CORE__FERNET_KEY_FILE: /run/secrets/airflow_fernet_key
+      AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: "true"
+      AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+      AIRFLOW__CORE__EXECUTION_API_SERVER_URL: "http://airflow-apiserver:8080/execution/"
+      AIRFLOW__SCHEDULER__ENABLE_HEALTH_CHECK: "true"
+      AIRFLOW_CONFIG: "/opt/airflow/config/airflow.cfg"
+      AIRFLOW__METRICS__STATSD_ON: "true"
+      AIRFLOW__METRICS__STATSD_HOST: statsd-exporter
+      AIRFLOW__METRICS__STATSD_PORT: "9125"
+      DUMB_INIT_SETSID: "0"
+    secrets:
+      - airflow_fernet_key
+    networks:
+      - data-platform
+    healthcheck:
+      test:
+        - "CMD-SHELL"
+        - 'celery --app airflow.providers.celery.executors.celery_executor.app inspect ping -d "celery@$${HOSTNAME}" || celery --app airflow.executors.celery_executor.app inspect ping -d "celery@$${HOSTNAME}"'
+      interval: 30s
+      timeout: 30s
+      retries: 5
+      start_period: 30s
+    deploy:
+      mode: global
+      resources:
+        limits:
+          cpus: "0.60"
+          memory: 3G
+        reservations:
+          cpus: "0.30"
+          memory: 1536M
+      update_config:
+        parallelism: 1
+        delay: 15s
+        failure_action: rollback
+        order: stop-first
+      rollback_config:
+        parallelism: 1
+        delay: 10s
+      restart_policy:
+        condition: on-failure
+        delay: 10s
+        max_attempts: 3
+
+  # ---------------------------------------------------------------------------
+  # AIRFLOW TRIGGERER — async deferred task execution
+  # 1 replica, pinned to node-1.
+  # ---------------------------------------------------------------------------
+  airflow-triggerer:
+    image: ghcr.io/YOUR_ORG/airflow:3.1.7-YYYYMMDD  # Replace with actual GHCR image tag
+    command: triggerer
+    environment:
+      AIRFLOW__CORE__EXECUTOR: CeleryExecutor
+      AIRFLOW__CORE__AUTH_MANAGER: airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:CHANGE_ME@postgres/airflow
+      AIRFLOW__CELERY__RESULT_BACKEND: db+postgresql://airflow:CHANGE_ME@postgres/airflow
+      AIRFLOW__CELERY__BROKER_URL: redis://:CHANGE_ME@redis:6379/0
+      AIRFLOW__CORE__FERNET_KEY_FILE: /run/secrets/airflow_fernet_key
+      AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: "true"
+      AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+      AIRFLOW__CORE__EXECUTION_API_SERVER_URL: "http://airflow-apiserver:8080/execution/"
+      AIRFLOW__SCHEDULER__ENABLE_HEALTH_CHECK: "true"
+      AIRFLOW_CONFIG: "/opt/airflow/config/airflow.cfg"
+      AIRFLOW__METRICS__STATSD_ON: "true"
+      AIRFLOW__METRICS__STATSD_HOST: statsd-exporter
+      AIRFLOW__METRICS__STATSD_PORT: "9125"
+    secrets:
+      - airflow_fernet_key
+    networks:
+      - data-platform
+    healthcheck:
+      test:
+        - "CMD-SHELL"
+        - 'airflow jobs check --job-type TriggererJob --hostname "$${HOSTNAME}"'
+      interval: 30s
+      timeout: 120s
+      retries: 5
+      start_period: 30s
+    deploy:
+      replicas: 1
+      placement:
+        constraints:
+          - node.labels.nodename == node1
+      resources:
+        limits:
+          cpus: "0.15"
+          memory: 512M
+        reservations:
+          cpus: "0.05"
+          memory: 256M
+      update_config:
+        parallelism: 1
+        delay: 15s
+        failure_action: rollback
+        order: stop-first
+      rollback_config:
+        parallelism: 1
+        delay: 10s
+      restart_policy:
+        condition: on-failure
+        delay: 10s
+        max_attempts: 3
+
+  # ---------------------------------------------------------------------------
+  # AIRFLOW FLOWER — Celery monitoring UI
+  # 1 replica, any node. Published on port 5555.
+  # ---------------------------------------------------------------------------
+  airflow-flower:
+    image: ghcr.io/YOUR_ORG/airflow:3.1.7-YYYYMMDD  # Replace with actual GHCR image tag
+    command: celery flower
+    environment:
+      AIRFLOW__CORE__EXECUTOR: CeleryExecutor
+      AIRFLOW__CORE__AUTH_MANAGER: airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:CHANGE_ME@postgres/airflow
+      AIRFLOW__CELERY__RESULT_BACKEND: db+postgresql://airflow:CHANGE_ME@postgres/airflow
+      AIRFLOW__CELERY__BROKER_URL: redis://:CHANGE_ME@redis:6379/0
+      AIRFLOW__CORE__FERNET_KEY_FILE: /run/secrets/airflow_fernet_key
+      AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: "true"
+      AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+      AIRFLOW__CORE__EXECUTION_API_SERVER_URL: "http://airflow-apiserver:8080/execution/"
+      AIRFLOW__SCHEDULER__ENABLE_HEALTH_CHECK: "true"
+      AIRFLOW_CONFIG: "/opt/airflow/config/airflow.cfg"
+      AIRFLOW__METRICS__STATSD_ON: "true"
+      AIRFLOW__METRICS__STATSD_HOST: statsd-exporter
+      AIRFLOW__METRICS__STATSD_PORT: "9125"
+    secrets:
+      - airflow_fernet_key
+    ports:
+      - "5555:5555"
+    networks:
+      - data-platform
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://localhost:5555/"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    deploy:
+      replicas: 1
+      resources:
+        limits:
+          cpus: "0.15"
+          memory: 512M
+        reservations:
+          cpus: "0.05"
+          memory: 256M
+      update_config:
+        parallelism: 1
+        delay: 15s
+        failure_action: rollback
+        order: start-first
+      rollback_config:
+        parallelism: 1
+        delay: 10s
+      restart_policy:
+        condition: on-failure
+        delay: 10s
+        max_attempts: 3
+
+  # ---------------------------------------------------------------------------
+  # POLARIS — Apache Polaris Iceberg catalog (incubating)
+  # 2 replicas, any node. GlusterFS for catalog metadata persistence.
+  # Verify Polaris image name and tag before deploying:
+  #   https://hub.docker.com/r/apache/polaris
+  # ---------------------------------------------------------------------------
+  polaris:
+    image: apache/polaris:latest  # Verify image name and tag
+    ports:
+      - "8181:8181"
+    volumes:
+      - /mnt/gluster/polaris-data:/var/lib/polaris
+    networks:
+      - data-platform
+    deploy:
+      replicas: 2
+      resources:
+        limits:
+          cpus: "0.25"
+          memory: 1G
+        reservations:
+          cpus: "0.10"
+          memory: 512M
+      update_config:
+        parallelism: 1
+        delay: 15s
+        failure_action: rollback
+        order: start-first
+      rollback_config:
+        parallelism: 1
+        delay: 10s
+      restart_policy:
+        condition: on-failure
+        delay: 10s
+        max_attempts: 3
+
+  # ---------------------------------------------------------------------------
+  # PROMETHEUS — metrics collection and storage
+  # 1 replica, pinned to node-3. Config injected via Docker config.
+  # GlusterFS for TSDB persistence across node failures.
+  # NOTE: Port 9090 is not exposed via NSG — internal cluster access only.
+  # ---------------------------------------------------------------------------
+  prometheus:
+    image: prom/prometheus:latest
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--web.console.libraries=/usr/share/prometheus/console_libraries"
+      - "--web.console.templates=/usr/share/prometheus/consoles"
+    configs:
+      - source: prometheus_config
+        target: /etc/prometheus/prometheus.yml
+    volumes:
+      - /mnt/gluster/prometheus-data:/prometheus
+    ports:
+      - "9090:9090"
+    networks:
+      - data-platform
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:9090/-/healthy || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    deploy:
+      replicas: 1
+      placement:
+        constraints:
+          - node.labels.nodename == node3
+      resources:
+        limits:
+          cpus: "0.20"
+          memory: 512M
+        reservations:
+          cpus: "0.10"
+          memory: 256M
+      update_config:
+        parallelism: 1
+        delay: 15s
+        failure_action: rollback
+        order: stop-first
+      rollback_config:
+        parallelism: 1
+        delay: 10s
+      restart_policy:
+        condition: on-failure
+        delay: 10s
+        max_attempts: 3
+
+  # ---------------------------------------------------------------------------
+  # GRAFANA — metrics dashboards
+  # 1 replica, pinned to node-3. Published on port 3000 (NSG-allowed).
+  # Admin password injected via Docker secret using GF_SECURITY_ADMIN_PASSWORD_FILE.
+  # ---------------------------------------------------------------------------
+  grafana:
+    image: grafana/grafana:latest
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD_FILE: /run/secrets/grafana_admin_password
+      GF_PATHS_DATA: /var/lib/grafana
+    secrets:
+      - grafana_admin_password
+    ports:
+      - "3000:3000"
+    networks:
+      - data-platform
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3000/api/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    deploy:
+      replicas: 1
+      placement:
+        constraints:
+          - node.labels.nodename == node3
+      resources:
+        limits:
+          cpus: "0.20"
+          memory: 512M
+        reservations:
+          cpus: "0.10"
+          memory: 256M
+      update_config:
+        parallelism: 1
+        delay: 15s
+        failure_action: rollback
+        order: start-first
+      rollback_config:
+        parallelism: 1
+        delay: 10s
+      restart_policy:
+        condition: on-failure
+        delay: 10s
+        max_attempts: 3
+
+  # ---------------------------------------------------------------------------
+  # STATSD EXPORTER — translates Airflow StatsD metrics to Prometheus format
+  # 1 replica, any node. Port 9125/UDP receives StatsD from Airflow workers.
+  # Port 9102 is scraped by Prometheus.
+  # ---------------------------------------------------------------------------
+  statsd-exporter:
+    image: prom/statsd-exporter:latest
+    ports:
+      - "9102:9102"
+      - "9125:9125/udp"
+    networks:
+      - data-platform
+    deploy:
+      replicas: 1
+      resources:
+        limits:
+          cpus: "0.05"
+          memory: 64M
+        reservations:
+          cpus: "0.02"
+          memory: 32M
+      update_config:
+        parallelism: 1
+        delay: 15s
+        failure_action: rollback
+        order: start-first
+      rollback_config:
+        parallelism: 1
+        delay: 10s
+      restart_policy:
+        condition: on-failure
+        delay: 10s
+        max_attempts: 3
+
+  # ---------------------------------------------------------------------------
+  # POSTGRES EXPORTER — PostgreSQL metrics for Prometheus
+  # 1 replica, any node.
+  # NOTE: DATA_SOURCE_NAME contains CHANGE_ME password placeholder.
+  # Harden by implementing DATA_SOURCE_URI_FILE if your exporter image supports it,
+  # or use an entrypoint wrapper to construct the DSN from /run/secrets/postgres_airflow_password.
+  # ---------------------------------------------------------------------------
+  postgres-exporter:
+    image: prometheuscommunity/postgres-exporter:latest
+    environment:
+      # CHANGE_ME: replace with actual password or use entrypoint wrapper with secret
+      DATA_SOURCE_NAME: "postgresql://airflow:CHANGE_ME@postgres:5432/airflow?sslmode=disable"
+    networks:
+      - data-platform
+    deploy:
+      replicas: 1
+      resources:
+        limits:
+          cpus: "0.05"
+          memory: 64M
+        reservations:
+          cpus: "0.02"
+          memory: 32M
+      update_config:
+        parallelism: 1
+        delay: 15s
+        failure_action: rollback
+        order: start-first
+      rollback_config:
+        parallelism: 1
+        delay: 10s
+      restart_policy:
+        condition: on-failure
+        delay: 10s
+        max_attempts: 3
+
+  # ---------------------------------------------------------------------------
+  # REDIS EXPORTER — Redis metrics for Prometheus
+  # 1 replica, any node. Password read from Docker secret via REDIS_PASSWORD_FILE.
+  # ---------------------------------------------------------------------------
+  redis-exporter:
+    image: oliver006/redis_exporter:latest
+    environment:
+      REDIS_ADDR: "redis://redis:6379"
+      REDIS_PASSWORD_FILE: /run/secrets/redis_password
+    secrets:
+      - redis_password
+    networks:
+      - data-platform
+    deploy:
+      replicas: 1
+      resources:
+        limits:
+          cpus: "0.05"
+          memory: 64M
+        reservations:
+          cpus: "0.02"
+          memory: 32M
+      update_config:
+        parallelism: 1
+        delay: 15s
+        failure_action: rollback
+        order: start-first
+      rollback_config:
+        parallelism: 1
+        delay: 10s
+      restart_policy:
+        condition: on-failure
+        delay: 10s
+        max_attempts: 3
+
+  # ---------------------------------------------------------------------------
+  # NODE EXPORTER — host-level metrics (CPU, memory, disk, network)
+  # mode: global — 1 instance per node (3 total across the cluster).
+  # Read-only bind mounts to /proc, /sys, / are standard node-exporter practice.
+  # SECURITY NOTE (T-bns-03): read-only host filesystem access; no write capability.
+  # ---------------------------------------------------------------------------
+  node-exporter:
+    image: prom/node-exporter:latest
+    command:
+      - "--path.procfs=/host/proc"
+      - "--path.sysfs=/host/sys"
+      - "--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)"
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    networks:
+      - data-platform
+    deploy:
+      mode: global
+      resources:
+        limits:
+          cpus: "0.05"
+          memory: 64M
+        reservations:
+          cpus: "0.02"
+          memory: 32M
+      update_config:
+        parallelism: 1
+        delay: 15s
+        failure_action: rollback
+        order: start-first
+      rollback_config:
+        parallelism: 1
+        delay: 10s
+      restart_policy:
+        condition: on-failure
+        delay: 10s
+        max_attempts: 3
+
+# =============================================================================
+# NETWORKS
+# The overlay network is defined here (not external) — Swarm creates it on deploy.
+# attachable: true allows one-off containers (e.g. airflow db migrate) to join.
+# =============================================================================
+networks:
+  data-platform:
+    driver: overlay
+    attachable: true
+
+# =============================================================================
+# CONFIGS
+# Non-sensitive configuration files injected into containers as Docker configs.
+# The path is relative to this stack file location.
+# =============================================================================
+configs:
+  postgres_init_db:
+    file: ../../docker/local/postgres/init-db.sh
+  prometheus_config:
+    file: ./prometheus/prometheus.yml
+
+# =============================================================================
+# SECRETS
+# All secrets are created out-of-band with `docker secret create` (see header).
+# external: true means Swarm does not manage their lifecycle — you must create
+# them before deploying this stack.
+#
+# Secrets used in this stack:
+#   postgres_airflow_password — PostgreSQL POSTGRES_PASSWORD_FILE
+#   redis_password            — Redis requirepass + redis-exporter auth
+#   airflow_fernet_key        — AIRFLOW__CORE__FERNET_KEY_FILE (all Airflow services)
+#   grafana_admin_password    — GF_SECURITY_ADMIN_PASSWORD_FILE
+# =============================================================================
+secrets:
+  postgres_airflow_password:
+    external: true
+  redis_password:
+    external: true
+  airflow_fernet_key:
+    external: true
+  grafana_admin_password:
+    external: true

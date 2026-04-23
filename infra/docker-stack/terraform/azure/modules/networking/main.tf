@@ -1,6 +1,6 @@
 resource "azurerm_virtual_network" "this" {
   name                = "${var.name_prefix}-vnet"
-  address_space       = ["10.0.0.0/16"]
+  address_space       = ["10.54.0.0/16"]
   location            = var.location
   resource_group_name = var.resource_group_name
   tags                = var.tags
@@ -10,7 +10,7 @@ resource "azurerm_subnet" "nodes" {
   name                 = "nodes-subnet"
   resource_group_name  = var.resource_group_name
   virtual_network_name = azurerm_virtual_network.this.name
-  address_prefixes     = ["10.0.1.0/24"]
+  address_prefixes     = ["10.54.1.0/24"]
 }
 
 # Azure Bastion requires a dedicated subnet named exactly "AzureBastionSubnet" with a /27 or larger prefix.
@@ -20,7 +20,7 @@ resource "azurerm_subnet" "bastion" {
   name                 = "AzureBastionSubnet"
   resource_group_name  = var.resource_group_name
   virtual_network_name = azurerm_virtual_network.this.name
-  address_prefixes     = ["10.0.2.0/27"]
+  address_prefixes     = ["10.54.2.0/27"]
 }
 
 resource "azurerm_network_security_group" "nodes" {
@@ -60,14 +60,14 @@ resource "azurerm_network_security_rule" "allow_grafana" {
   network_security_group_name = azurerm_network_security_group.nodes.name
 }
 
-resource "azurerm_network_security_rule" "allow_dokploy" {
-  name                        = "Allow-Dokploy"
+resource "azurerm_network_security_rule" "allow_portainer" {
+  name                        = "Allow-Portainer"
   priority                    = 115
   direction                   = "Inbound"
   access                      = "Allow"
   protocol                    = "Tcp"
   source_port_range           = "*"
-  destination_port_range      = "3001"
+  destination_port_range      = "9443"
   source_address_prefix       = "Internet"
   destination_address_prefix  = "*"
   resource_group_name         = var.resource_group_name
@@ -102,7 +102,7 @@ resource "azurerm_network_security_rule" "swarm_manager" {
   protocol                    = "Tcp"
   source_port_range           = "*"
   destination_port_range      = "2377"
-  source_address_prefix       = "10.0.1.0/24"
+  source_address_prefix       = "10.54.1.0/24"
   destination_address_prefix  = "*"
   resource_group_name         = var.resource_group_name
   network_security_group_name = azurerm_network_security_group.nodes.name
@@ -116,7 +116,7 @@ resource "azurerm_network_security_rule" "swarm_discovery_tcp" {
   protocol                    = "Tcp"
   source_port_range           = "*"
   destination_port_range      = "7946"
-  source_address_prefix       = "10.0.1.0/24"
+  source_address_prefix       = "10.54.1.0/24"
   destination_address_prefix  = "*"
   resource_group_name         = var.resource_group_name
   network_security_group_name = azurerm_network_security_group.nodes.name
@@ -130,7 +130,7 @@ resource "azurerm_network_security_rule" "swarm_discovery_udp" {
   protocol                    = "Udp"
   source_port_range           = "*"
   destination_port_range      = "7946"
-  source_address_prefix       = "10.0.1.0/24"
+  source_address_prefix       = "10.54.1.0/24"
   destination_address_prefix  = "*"
   resource_group_name         = var.resource_group_name
   network_security_group_name = azurerm_network_security_group.nodes.name
@@ -144,7 +144,7 @@ resource "azurerm_network_security_rule" "swarm_overlay" {
   protocol                    = "Udp"
   source_port_range           = "*"
   destination_port_range      = "4789"
-  source_address_prefix       = "10.0.1.0/24"
+  source_address_prefix       = "10.54.1.0/24"
   destination_address_prefix  = "*"
   resource_group_name         = var.resource_group_name
   network_security_group_name = azurerm_network_security_group.nodes.name
@@ -158,7 +158,7 @@ resource "azurerm_network_security_rule" "gluster_management" {
   protocol                    = "Tcp"
   source_port_range           = "*"
   destination_port_range      = "24007-24008"
-  source_address_prefix       = "10.0.1.0/24"
+  source_address_prefix       = "10.54.1.0/24"
   destination_address_prefix  = "*"
   resource_group_name         = var.resource_group_name
   network_security_group_name = azurerm_network_security_group.nodes.name
@@ -172,7 +172,7 @@ resource "azurerm_network_security_rule" "gluster_bricks" {
   protocol                    = "Tcp"
   source_port_range           = "*"
   destination_port_range      = "49152-49200"
-  source_address_prefix       = "10.0.1.0/24"
+  source_address_prefix       = "10.54.1.0/24"
   destination_address_prefix  = "*"
   resource_group_name         = var.resource_group_name
   network_security_group_name = azurerm_network_security_group.nodes.name
