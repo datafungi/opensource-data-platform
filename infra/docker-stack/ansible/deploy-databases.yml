@@ -1,0 +1,130 @@
+---
+# Deploys the Postgres + Redis stack to Docker Swarm.
+#
+# Prerequisites:
+#   1. terraform apply has run (Key Vault and Postgres passwords exist)
+#   2. az login is active on this machine (used to read Key Vault secrets)
+#   3. collection installed: ansible-galaxy collection install -r requirements.yml
+#   4. Swarm is up (cloud-init has completed on all three nodes)
+#
+# Usage:
+#   ansible-playbook deploy-databases.yml
+#
+# Override vars if needed:
+#   -e keyvault_name=$(terraform -chdir=../terraform/azure output -raw key_vault_name)
+#   -e name_prefix=data-platform-dev
+
+# ── Play 1: Read Postgres credentials from Key Vault ─────────────────────────
+# Runs on the control machine. Requires `az` CLI and an active login.
+- name: Read Postgres credentials from Key Vault
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tasks:
+    - name: Read Postgres passwords from Key Vault
+      ansible.builtin.command: >
+        az keyvault secret show
+        --vault-name {{ keyvault_name }}
+        --name {{ item }}
+        --query value -o tsv
+      loop:
+        - postgres-superuser-password
+        - postgres-airflow-password
+        - postgres-polaris-password
+      register: kv_results
+      changed_when: false
+      no_log: true
+
+    - name: Set password facts
+      ansible.builtin.set_fact:
+        pg_passwords:
+          superuser: "{{ kv_results.results[0].stdout }}"
+          airflow:   "{{ kv_results.results[1].stdout }}"
+          polaris:   "{{ kv_results.results[2].stdout }}"
+      no_log: true
+
+
+# ── Play 2: Provision Swarm resources and deploy stack ───────────────────────
+# Runs on node-1 (the primary Swarm manager) over SSH.
+- name: Provision Swarm resources and deploy databases stack
+  hosts: swarm_primary
+  gather_facts: false
+  pre_tasks:
+    - name: Install pip and Python Docker SDK
+      ansible.builtin.apt:
+        name:
+          - python3-pip
+          - python3-docker
+        state: present
+        update_cache: true
+      become: true
+
+  tasks:
+
+    # Docker secrets are created once and never rotated here automatically.
+    # To rotate: update the KV secret, delete the Docker secret, re-run.
+    - name: Create Postgres Docker secrets
+      community.docker.docker_secret:
+        name: "{{ item.name }}"
+        data: "{{ item.value }}"
+        state: present
+      loop:
+        - name: postgres_superuser_password
+          value: "{{ hostvars.localhost.pg_passwords.superuser }}"
+        - name: postgres_airflow_password
+          value: "{{ hostvars.localhost.pg_passwords.airflow }}"
+        - name: postgres_polaris_password
+          value: "{{ hostvars.localhost.pg_passwords.polaris }}"
+      no_log: true
+
+    # The init script is stored as a Swarm config — no bind mount, no file
+    # distribution to individual nodes. Swarm replicates it automatically.
+    - name: Create Postgres init script Docker config
+      community.docker.docker_config:
+        name: postgres_init_db
+        data: "{{ lookup('file', playbook_dir + '/../scripts/postgres-init.sh') }}"
+        state: present
+
+    # node-1 hosts stateful services (Postgres, Redis). node labels are stable
+    # after first run; docker node update is idempotent.
+    - name: Label node-1 as stateful
+      ansible.builtin.command: >
+        docker node update --label-add stateful=true {{ name_prefix }}-node-1
+      changed_when: false
+
+    - name: Set nodename labels on all Swarm nodes
+      ansible.builtin.command: >
+        docker node update --label-add nodename=node{{ item }} {{ name_prefix }}-node-{{ item }}
+      loop: [1, 2, 3]
+      changed_when: false
+
+    - name: Create shared overlay network
+      community.docker.docker_network:
+        name: data-platform
+        driver: overlay
+        attachable: true
+        state: present
+
+    - name: Create stack directory
+      ansible.builtin.file:
+        path: /opt/stacks
+        state: directory
+        mode: "0755"
+      become: true
+
+    - name: Copy databases compose file
+      ansible.builtin.copy:
+        src: "{{ playbook_dir }}/../compose/databases.yaml"
+        dest: /opt/stacks/databases.yaml
+        mode: "0644"
+      become: true
+
+    - name: Deploy databases stack
+      ansible.builtin.command: >
+        docker stack deploy
+        --compose-file /opt/stacks/databases.yaml
+        {{ stack_name }}
+      register: stack_deploy
+      changed_when: >
+        'Creating service' in stack_deploy.stdout or
+        'Updating service' in stack_deploy.stdout

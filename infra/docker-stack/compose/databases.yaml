@@ -2,11 +2,22 @@ services:
   postgres:
     image: postgres:16
     environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD_FILE: /run/secrets/postgres_superuser_password
+    secrets:
+      - postgres_superuser_password
+      - postgres_airflow_password
+      - postgres_polaris_password
+    configs:
+      - source: postgres_init_db
+        target: /docker-entrypoint-initdb.d/init.sh
+        mode: 0755
     volumes:
+      - postgres_data:/var/lib/postgresql/data
     networks:
     - data-platform
     healthcheck:
-      test: [ "CMD", "pg_isready", "-U", "airflow" ]
+      test: [ "CMD", "pg_isready", "-U", "postgres" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -16,6 +27,25 @@ services:
       placement:
         constraints:
         - node.labels.stateful == true
+      resources:
+        limits:
+          cpus: "0.35"
+          memory: 1G
+        reservations:
+          cpus: "0.20"
+          memory: 512M
+      update_config:
+        parallelism: 1
+        delay: 15s
+        failure_action: rollback
+        order: stop-first
+      rollback_config:
+        parallelism: 1
+        delay: 10s
+      restart_policy:
+        condition: on-failure
+        delay: 10s
+        max_attempts: 3
 
   redis:
     image: redis:7.2-bookworm
@@ -39,3 +69,35 @@ services:
         reservations:
           cpus: "0.05"
           memory: 128M
+      update_config:
+        parallelism: 1
+        delay: 15s
+        failure_action: rollback
+        order: stop-first
+      rollback_config:
+        parallelism: 1
+        delay: 10s
+      restart_policy:
+        condition: on-failure
+        delay: 10s
+        max_attempts: 3
+
+networks:
+  data-platform:
+    external: true
+
+configs:
+  postgres_init_db:
+    external: true
+
+secrets:
+  postgres_superuser_password:
+    external: true
+  postgres_airflow_password:
+    external: true
+  postgres_polaris_password:
+    external: true
+
+volumes:
+  postgres_data:
+    driver: local
