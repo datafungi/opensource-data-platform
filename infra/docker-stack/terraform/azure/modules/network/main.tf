@@ -53,7 +53,7 @@ resource "azurerm_network_security_rule" "allow_airflow_ui" {
   protocol                    = "Tcp"
   source_port_range           = "*"
   destination_port_range      = "8080"
-  source_address_prefix       = "Internet"
+  source_address_prefix       = var.enable_tailscale ? "10.54.0.0/24" : "Internet"
   destination_address_prefix  = "*"
   resource_group_name         = var.resource_group_name
   network_security_group_name = azurerm_network_security_group.nodes.name
@@ -67,7 +67,7 @@ resource "azurerm_network_security_rule" "allow_grafana" {
   protocol                    = "Tcp"
   source_port_range           = "*"
   destination_port_range      = "3000"
-  source_address_prefix       = "Internet"
+  source_address_prefix       = var.enable_tailscale ? "10.54.0.0/24" : "Internet"
   destination_address_prefix  = "*"
   resource_group_name         = var.resource_group_name
   network_security_group_name = azurerm_network_security_group.nodes.name
@@ -81,7 +81,7 @@ resource "azurerm_network_security_rule" "allow_portainer" {
   protocol                    = "Tcp"
   source_port_range           = "*"
   destination_port_range      = "9443"
-  source_address_prefix       = "Internet"
+  source_address_prefix       = var.enable_tailscale ? "10.54.0.0/24" : "Internet"
   destination_address_prefix  = "*"
   resource_group_name         = var.resource_group_name
   network_security_group_name = azurerm_network_security_group.nodes.name
