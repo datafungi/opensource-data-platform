@@ -79,3 +79,21 @@ variable "tags" {
   default     = {}
   description = "Tags applied to all compute resources."
 }
+
+variable "auto_shutdown_enabled" {
+  type        = bool
+  default     = false
+  description = "Enable daily auto-shutdown for cluster nodes."
+}
+
+variable "auto_shutdown_time" {
+  type        = string
+  default     = "2300"
+  description = "Daily auto-shutdown time in HHMM format."
+}
+
+variable "auto_shutdown_timezone" {
+  type        = string
+  default     = "SE Asia Standard Time"
+  description = "Windows timezone name for auto_shutdown_time."
+}

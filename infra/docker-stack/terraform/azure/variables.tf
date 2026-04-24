@@ -57,8 +57,52 @@ variable "data_disk_size_gb" {
   description = "Size in GiB of the Premium SSD data disk attached to each node for the GlusterFS brick."
 }
 
+variable "enable_tailscale" {
+  type        = bool
+  default     = false
+  description = "Deploy a dedicated Tailscale VM as a subnet router (access all VNet resources without Tailscale on each VM) and VPN exit node (self-hosted VPN). Requires tailscale_oauth_client_id and tailscale_oauth_client_secret."
+}
+
+variable "tailscale_oauth_client_id" {
+  type        = string
+  sensitive   = true
+  default     = ""
+  description = "Tailscale OAuth client ID used to generate a reusable auth key via the Tailscale provider. Create at https://login.tailscale.com/admin/settings/oauth. Required when enable_tailscale = true."
+}
+
+variable "tailscale_oauth_client_secret" {
+  type        = string
+  sensitive   = true
+  default     = ""
+  description = "Tailscale OAuth client secret paired with tailscale_oauth_client_id. Required when enable_tailscale = true."
+}
+
+variable "tailscale_tags" {
+  type        = list(string)
+  default     = ["tag:server"]
+  description = "ACL tags applied to the Tailscale gateway VM. Tags must be defined in your tailnet ACL policy (tagOwners) before apply. OAuth-generated keys require at least one tag."
+}
+
 variable "tags" {
   type        = map(string)
   default     = {}
   description = "Additional tags merged into the common tag set applied to all resources."
+}
+
+variable "auto_shutdown_enabled" {
+  type        = bool
+  default     = false
+  description = "Enable daily auto-shutdown for cluster nodes. The Tailscale VM is never affected."
+}
+
+variable "auto_shutdown_time" {
+  type        = string
+  default     = "2300"
+  description = "Daily auto-shutdown time in HHMM format (e.g. \"2300\" = 11 PM). Interpreted in auto_shutdown_timezone."
+}
+
+variable "auto_shutdown_timezone" {
+  type        = string
+  default     = "SE Asia Standard Time"
+  description = "Windows timezone name for auto_shutdown_time. Azure requires Windows timezone IDs (e.g. \"SE Asia Standard Time\" for Asia/Ho_Chi_Minh, \"UTC\" for UTC)."
 }

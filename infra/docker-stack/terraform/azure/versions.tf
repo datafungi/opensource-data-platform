@@ -18,6 +18,10 @@ terraform {
       source  = "hashicorp/local"
       version = "~> 2.5"
     }
+    tailscale = {
+      source  = "tailscale/tailscale"
+      version = ">= 0.16"
+    }
   }
 
   # Uncomment and configure before first apply.
@@ -45,3 +49,11 @@ provider "azurerm" {
 }
 
 data "azurerm_client_config" "current" {}
+
+# Credentials are only used when enable_tailscale = true. Empty defaults are
+# safe when Tailscale is disabled — the provider makes no API calls unless a
+# tailscale_tailnet_key resource is being managed.
+provider "tailscale" {
+  oauth_client_id     = var.tailscale_oauth_client_id
+  oauth_client_secret = var.tailscale_oauth_client_secret
+}

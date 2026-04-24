@@ -107,6 +107,26 @@ resource "azurerm_virtual_machine_data_disk_attachment" "nodes" {
   caching            = "None"
 }
 
+# ── Auto-shutdown schedules (cluster nodes only) ──────────────────────────────
+# The Tailscale VM is intentionally excluded — it must stay up to keep
+# VNet-to-tailnet connectivity alive outside working hours.
+
+resource "azurerm_dev_test_global_vm_shutdown_schedule" "nodes" {
+  count = var.auto_shutdown_enabled ? local.node_count : 0
+
+  virtual_machine_id    = azurerm_linux_virtual_machine.nodes[count.index].id
+  location              = var.location
+  enabled               = true
+  daily_recurrence_time = var.auto_shutdown_time
+  timezone              = var.auto_shutdown_timezone
+
+  notification_settings {
+    enabled = false
+  }
+
+  tags = var.tags
+}
+
 # ── Azure Bastion (optional) ──────────────────────────────────────────────────
 
 resource "azurerm_public_ip" "bastion" {

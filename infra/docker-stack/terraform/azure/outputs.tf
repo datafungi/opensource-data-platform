@@ -1,6 +1,11 @@
-output "resource_group_name" {
-  description = "Name of the deployed resource group."
-  value       = azurerm_resource_group.this.name
+output "network_resource_group_name" {
+  description = "Name of the networking resource group (VNet, subnets, NSGs, Tailscale VM)."
+  value       = azurerm_resource_group.network.name
+}
+
+output "platform_resource_group_name" {
+  description = "Name of the data platform resource group (cluster VMs, storage, Key Vault)."
+  value       = azurerm_resource_group.platform.name
 }
 
 output "node_public_ip" {
@@ -38,12 +43,22 @@ output "cluster_identity_client_id" {
   value       = azurerm_user_assigned_identity.cluster.client_id
 }
 
+output "cluster_identity_principal_id" {
+  description = "Principal (object) ID of the cluster managed identity — useful for adding extra role assignments."
+  value       = azurerm_user_assigned_identity.cluster.principal_id
+}
+
 output "ssh_private_key_path" {
   description = "Local path to the generated SSH private key for cluster access."
   value       = local_sensitive_file.cluster_private_key.filename
 }
 
-output "cluster_identity_principal_id" {
-  description = "Principal (object) ID of the cluster managed identity — useful for adding extra role assignments."
-  value       = azurerm_user_assigned_identity.cluster.principal_id
+output "tailscale_public_ip" {
+  description = "Public IP of the Tailscale subnet router / VPN exit node. Null when enable_tailscale = false."
+  value       = module.network.tailscale_public_ip
+}
+
+output "tailscale_private_ip" {
+  description = "Private IP of the Tailscale VM within tailscale-subnet (10.54.0.0/24). Null when enable_tailscale = false."
+  value       = module.network.tailscale_private_ip
 }
