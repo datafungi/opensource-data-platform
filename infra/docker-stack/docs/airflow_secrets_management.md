@@ -46,8 +46,11 @@ authenticate to Key Vault when multiple user-assigned identities are attached to
 
 - **Provider installed:** `apache-airflow-providers-microsoft-azure` must be present in the
   Airflow image. It is already included in `requirements.txt`.
-- **Key Vault access:** The cluster managed identity already has `Get` and `List` secret
-  permissions on the Key Vault, granted by Terraform via `azurerm_key_vault_access_policy.cluster_vms`.
+- **Key Vault access:** The cluster managed identity has `Get` and `List` secret permissions
+  on the Key Vault, granted by Terraform via `azurerm_key_vault_access_policy.cluster_vms`.
+- **Blob Storage access:** The cluster managed identity has `Storage Blob Data Contributor`
+  role on the storage account, granted by Terraform via `azurerm_role_assignment.cluster_storage`.
+  This allows all Airflow services to write task logs to the `airflow-logs` container.
 - **Managed identity client ID:** Available from the Terraform output or Azure CLI. Used to
   disambiguate which user-assigned identity to use when authenticating.
 
@@ -79,21 +82,28 @@ Create `scripts/airflow-entrypoint.sh` and deploy it alongside the stack:
 #!/usr/bin/env bash
 set -euo pipefail
 export AZURE_CLIENT_ID="$(cat /run/secrets/azure_mi_client_id)"
-exec /entrypoint "$@"
+exec /usr/bin/dumb-init -- /entrypoint "$@"
 ```
 
 `DefaultAzureCredential` and `ManagedIdentityCredential` both respect `AZURE_CLIENT_ID`
 automatically — no additional configuration is needed in `backend_kwargs`.
 
-Reference the wrapper in the stack's anchor block:
+The script is deployed as a Docker config (`airflow_entrypoint`) and mounted
+read-only into every Airflow container. Reference in the stack's anchor block:
 
 ```yaml
 x-airflow-common: &airflow-common
   entrypoint: ["/opt/scripts/airflow-entrypoint.sh"]
+  configs:
+    - source: airflow_entrypoint
+      target: /opt/scripts/airflow-entrypoint.sh
+      mode: 0755
   secrets:
     - azure_mi_client_id
-  volumes:
-    - ./scripts/airflow-entrypoint.sh:/opt/scripts/airflow-entrypoint.sh:ro
+
+configs:
+  airflow_entrypoint:
+    external: true
 
 secrets:
   azure_mi_client_id:
@@ -138,7 +148,7 @@ given name. It is supported for the same allowlist as `_CMD`:
 | `AIRFLOW__SMTP__SMTP_PASSWORD_SECRET`        | `smtp-password`              |
 
 The value of each env var is passed to `backend.get_config(key)`, which fetches the Key Vault
-secret named `{config_prefix}--{key}` (see [Section 7](#7-key-vault-secret-naming-reference)).
+secret named `{config_prefix}-{key}` (see [Section 7](#7-key-vault-secret-naming-reference)).
 
 These values are resolved **once at container startup** — a service restart is required after
 rotating any of these secrets in Key Vault.
@@ -182,25 +192,27 @@ Connections and variables that should come from Key Vault must be created there 
 
 ## 7. Key Vault Secret Naming Reference
 
-The backend constructs the full Key Vault secret name as `{prefix}--{key}`, where `key` has
+The backend constructs the full Key Vault secret name as `{prefix}-{key}`, where `key` has
 underscores replaced with hyphens and is lowercased.
 
-| Type       | Prefix                | Example key        | Full Key Vault secret name         |
-|------------|-----------------------|--------------------|------------------------------------|
-| Config     | `airflow-config`      | `fernet-key`       | `airflow-config-fernet-key`       |
-| Config     | `airflow-config`      | `sql-alchemy-conn` | `airflow-config-sql-alchemy-conn` |
-| Connection | `airflow-connections` | `my_postgres`      | `airflow-connections-my-postgres` |
-| Variable   | `airflow-variables`   | `output_path`      | `airflow-variables-output-path`   |
+| Type       | Prefix                | Example key        | Full Key Vault secret name            |
+|------------|-----------------------|--------------------|---------------------------------------|
+| Config     | `airflow-config`      | `fernet-key`       | `airflow-config-fernet-key`           |
+| Config     | `airflow-config`      | `sql-alchemy-conn` | `airflow-config-sql-alchemy-conn`     |
+| Connection | `airflow-connections` | `my_postgres`      | `airflow-connections-my-postgres`     |
+| Connection | `airflow-connections` | `azure_blob_logs`  | `airflow-connections-azure-blob-logs` |
+| Variable   | `airflow-variables`   | `output_path`      | `airflow-variables-output-path`       |
 
 Postgres credential secrets use the `postgres-` prefix and are consumed as Docker secrets,
 not by Airflow's Key Vault backend directly:
 
-| Secret name                    | Created by | Consumed by                    |
-|--------------------------------|------------|--------------------------------|
-| `postgres-superuser-password`  | Terraform  | Docker secret → Postgres init  |
-| `postgres-airflow-password`    | Terraform  | Docker secret → Postgres init  |
-| `postgres-polaris-password`    | Terraform  | Docker secret → Postgres init  |
-| `airflow-config-sql-alchemy-conn` | Terraform | Airflow `_SECRET` lookup    |
+| Secret name                       | Created by | Consumed by                       |
+|-----------------------------------|------------|-----------------------------------|
+| `postgres-superuser-password`     | Terraform  | Docker secret → Postgres init     |
+| `postgres-airflow-password`       | Terraform  | Docker secret → Postgres init     |
+| `postgres-polaris-password`       | Terraform  | Docker secret → Postgres init     |
+| `airflow-config-sql-alchemy-conn` | Terraform  | Airflow `_SECRET` lookup          |
+| `gitsync-ssh-key`                 | Manual     | Docker secret → git-sync SSH auth |
 
 **Creating secrets in Key Vault:**
 
@@ -294,12 +306,15 @@ The next DAG task that accesses `my_postgres` will pick up the new value automat
 
 ## 9. Secret Scope Per Service
 
-The `azure_mi_client_id` Docker secret must be mounted on every service that authenticates to
-Key Vault — which is all Airflow services.
+The `azure_mi_client_id` Docker secret must be mounted on every Airflow service that
+authenticates to Key Vault or Blob Storage. The `gitsync_ssh_key` secret and
+`gitsync_known_hosts` config are used exclusively by the git-sync service.
 
-| Secret               | API server | Scheduler | DAG processor | Worker | Triggerer |
-|----------------------|------------|-----------|---------------|--------|-----------|
-| `azure_mi_client_id` | ✅          | ✅         | ✅             | ✅      | ✅         |
+| Secret / Config       | API server | Scheduler | DAG processor | Worker | Triggerer | git-sync |
+|-----------------------|------------|-----------|---------------|--------|-----------|----------|
+| `azure_mi_client_id`  | ✅          | ✅         | ✅             | ✅      | ✅         | —        |
+| `gitsync_ssh_key`     | —          | —         | —             | —      | —         | ✅        |
+| `gitsync_known_hosts` | —          | —         | —             | —      | —         | ✅        |
 
 Infrastructure secrets (Fernet key, DB conn, etc.) and DAG connections/variables are fetched
 directly from Key Vault — no per-service Docker secret declarations are needed for them.
