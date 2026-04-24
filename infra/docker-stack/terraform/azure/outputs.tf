@@ -38,6 +38,11 @@ output "backup_container_name" {
   value       = module.storage.backup_container_name
 }
 
+output "airflow_logs_container_name" {
+  description = "Blob container name for Airflow remote task logs."
+  value       = module.storage.airflow_logs_container_name
+}
+
 output "cluster_identity_client_id" {
   description = "Client ID of the user-assigned managed identity attached to all cluster VMs."
   value       = azurerm_user_assigned_identity.cluster.client_id

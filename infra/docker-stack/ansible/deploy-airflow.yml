@@ -1,0 +1,272 @@
+---
+# Deploys the Airflow stack to Docker Swarm.
+#
+# Prerequisites:
+#   1. deploy-databases.yml has run (Postgres and Redis healthy)
+#   2. Airflow image built and pushed to a registry accessible from all nodes
+#   3. az login is active on this machine
+#   4. collection installed: ansible-galaxy collection install -r requirements.yml
+#
+# Usage — first deployment:
+#   ansible-playbook deploy-airflow.yml
+#   (prompted for image and admin password)
+#
+# Usage — image update (admin user already exists):
+#   ansible-playbook deploy-airflow.yml -e airflow_image=<registry>/airflow:<tag>
+
+# ── Play 1: Populate Airflow secrets in Key Vault ────────────────────────────
+- name: Populate Airflow Key Vault secrets
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars_prompt:
+    - name: airflow_image
+      prompt: "Airflow image (e.g. ghcr.io/org/airflow:3.2.0-20260424)"
+      private: false
+    - name: airflow_admin_password
+      prompt: "Airflow admin password (leave blank on re-runs — user already exists)"
+      private: true
+      default: ""
+
+  tasks:
+    - name: Validate airflow_image
+      ansible.builtin.assert:
+        that: airflow_image | length > 0
+        fail_msg: "airflow_image must not be empty."
+
+    - name: Propagate prompted vars to localhost facts
+      ansible.builtin.set_fact:
+        airflow_image: "{{ airflow_image }}"
+        airflow_admin_password: "{{ airflow_admin_password }}"
+
+    - name: Read Airflow DB password from Key Vault
+      ansible.builtin.command: >
+        az keyvault secret show
+        --vault-name {{ keyvault_name }}
+        --name postgres-airflow-password
+        --query value -o tsv
+      register: airflow_db_password
+      changed_when: false
+      no_log: true
+
+    - name: Check if fernet key exists in Key Vault
+      ansible.builtin.command: >
+        az keyvault secret show
+        --vault-name {{ keyvault_name }}
+        --name airflow-config-fernet-key
+        --query value -o tsv
+      register: fernet_key_check
+      changed_when: false
+      failed_when: false
+      no_log: true
+
+    - name: Generate and store fernet key
+      when: fernet_key_check.rc != 0
+      block:
+        - name: Generate fernet key
+          ansible.builtin.command: >
+            python3 -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+          register: new_fernet_key
+          changed_when: true
+
+        - name: Store fernet key in Key Vault
+          ansible.builtin.command: >
+            az keyvault secret set
+            --vault-name {{ keyvault_name }}
+            --name airflow-config-fernet-key
+            --value {{ new_fernet_key.stdout | quote }}
+          changed_when: true
+          no_log: true
+
+    - name: Check if API secret key exists in Key Vault
+      ansible.builtin.command: >
+        az keyvault secret show
+        --vault-name {{ keyvault_name }}
+        --name airflow-config-api-secret-key
+        --query value -o tsv
+      register: api_key_check
+      changed_when: false
+      failed_when: false
+      no_log: true
+
+    - name: Generate and store API secret key
+      when: api_key_check.rc != 0
+      ansible.builtin.command: >
+        az keyvault secret set
+        --vault-name {{ keyvault_name }}
+        --name airflow-config-api-secret-key
+        --value {{ lookup('pipe', 'openssl rand -hex 32') | quote }}
+      changed_when: true
+      no_log: true
+
+    - name: Set broker URL in Key Vault
+      ansible.builtin.command: >
+        az keyvault secret set
+        --vault-name {{ keyvault_name }}
+        --name airflow-config-broker-url
+        --value "redis://redis:6379/0"
+      changed_when: true
+
+    - name: Set result backend in Key Vault
+      ansible.builtin.command: >
+        az keyvault secret set
+        --vault-name {{ keyvault_name }}
+        --name airflow-config-result-backend
+        --value "db+postgresql://airflow:{{ airflow_db_password.stdout }}@postgres/airflow"
+      changed_when: true
+      no_log: true
+
+    - name: Set Azure Blob logging connection in Key Vault
+      ansible.builtin.command: >
+        az keyvault secret set
+        --vault-name {{ keyvault_name }}
+        --name airflow-connections-azure-blob-logs
+        --value "wasb://{{ storage_account_name }}"
+      changed_when: true
+
+
+# ── Play 2: Prepare DAG directory on all nodes ───────────────────────────────
+- name: Create DAG sync directory on all nodes
+  hosts: swarm_managers
+  gather_facts: false
+
+  tasks:
+    - name: Create /opt/dags owned by git-sync (UID 65533)
+      ansible.builtin.file:
+        path: /opt/dags
+        state: directory
+        owner: "65533"
+        group: "65533"
+        mode: "0755"
+      become: true
+
+
+# ── Play 3: Create Docker resources and deploy stack ─────────────────────────
+- name: Deploy Airflow stack
+  hosts: swarm_primary
+  gather_facts: false
+  pre_tasks:
+    - name: Install Python Docker SDK
+      ansible.builtin.apt:
+        name:
+          - python3-pip
+          - python3-docker
+        state: present
+        update_cache: true
+      become: true
+
+  tasks:
+    - name: Get managed identity client ID
+      ansible.builtin.command: >
+        az identity show
+        --name {{ name_prefix }}-cluster-id
+        --resource-group {{ name_prefix }}-platform-rg
+        --query clientId -o tsv
+      delegate_to: localhost
+      register: mi_client_id
+      changed_when: false
+
+    - name: Create azure_mi_client_id Docker secret
+      community.docker.docker_secret:
+        name: azure_mi_client_id
+        data: "{{ mi_client_id.stdout }}"
+        state: present
+
+    - name: Create airflow_entrypoint Docker config
+      community.docker.docker_config:
+        name: airflow_entrypoint
+        data: "{{ lookup('file', playbook_dir + '/../scripts/airflow-entrypoint.sh') }}"
+        state: present
+
+    - name: Download git-sync SSH deploy key from Key Vault to temp file
+      ansible.builtin.command: >
+        az keyvault secret download
+        --vault-name {{ keyvault_name }}
+        --name gitsync-ssh-key
+        --file /tmp/gitsync_ssh_key
+      delegate_to: localhost
+      changed_when: false
+      no_log: true
+
+    - name: Create gitsync_ssh_key Docker secret
+      community.docker.docker_secret:
+        name: gitsync_ssh_key
+        data: "{{ lookup('file', '/tmp/gitsync_ssh_key') }}"
+        state: present
+      no_log: true
+
+    - name: Remove temp SSH key file
+      ansible.builtin.file:
+        path: /tmp/gitsync_ssh_key
+        state: absent
+      delegate_to: localhost
+
+    - name: Create gitsync_known_hosts Docker config
+      community.docker.docker_config:
+        name: gitsync_known_hosts
+        data: |
+          github.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl
+          github.com ecdsa-sha2-nistp256 AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlzdHAyNTYAAABBBEmKSENjQEezOmxkZMy7opKgwFoobEkU2oyUsz5p3UhIKVS5tyGjKgDfA8xHQEFD5FG7b0XuM2VZr1B8+Yisnuo=
+          github.com ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQCj7ndNxQowgcQnjshcLrqPEiiphnt+VTTvDP6mHBL9j1aNUkY4Ue1gvwnGLVlOhGeYrnZaMgRK6+PKCUXaDbC7qtbW8gIkhL7aGCsOr/C56SJMy/BCZfxd1nWzAOxSDPgVsmerOBYfNqltV9/hWCqBywINIR+5dIg6JTJ72pcEpEjcYgXkE2YEFV+uzbwCILaIIEEBvsS2gNMflJblS/rXvkJAnTAhOWA5+rH5y0y1VOSBnmGF5VPvuRW7c+JyL9zUqkMOcFHCKBzBcRerFf5GxMpzHzM9yYR9B8P1BjfVovLkgZUMLjsJHHLiFPvdLqnkKPjd0xyj+bMW1k2lQjdkLXSmfz2HuSNvkiiBiKCZwQHJhwKF5IDzNmOJk=
+        state: present
+
+    - name: Create stack directory
+      ansible.builtin.file:
+        path: /opt/stacks
+        state: directory
+        mode: "0755"
+      become: true
+
+    - name: Copy airflow-init compose file
+      ansible.builtin.copy:
+        src: "{{ playbook_dir }}/../compose/airflow-init.yaml"
+        dest: /opt/stacks/airflow-init.yaml
+        mode: "0644"
+      become: true
+
+    - name: Copy airflow compose file
+      ansible.builtin.copy:
+        src: "{{ playbook_dir }}/../compose/airflow.yaml"
+        dest: /opt/stacks/airflow.yaml
+        mode: "0644"
+      become: true
+
+    - name: Deploy airflow-init stack
+      ansible.builtin.command: >
+        docker stack deploy
+        --compose-file /opt/stacks/airflow-init.yaml
+        {{ stack_name }}
+      environment:
+        AIRFLOW_IMAGE: "{{ hostvars.localhost.airflow_image }}"
+        KEYVAULT_NAME: "{{ keyvault_name }}"
+        AIRFLOW_CREATE_ADMIN: "{{ 'true' if hostvars.localhost.airflow_admin_password | length > 0 else 'false' }}"
+        AIRFLOW_ADMIN_PASSWORD: "{{ hostvars.localhost.airflow_admin_password }}"
+      changed_when: true
+      no_log: true
+
+
+    - name: Wait for airflow-init to complete
+      ansible.builtin.command: >
+        docker service ps {{ stack_name }}_airflow-init
+        --filter desired-state=shutdown
+      register: init_ps
+      until: '"Complete" in init_ps.stdout or "Failed" in init_ps.stdout'
+      retries: 30
+      delay: 10
+      changed_when: false
+      failed_when: '"Failed" in init_ps.stdout'
+
+    - name: Deploy Airflow stack
+      ansible.builtin.command: >
+        docker stack deploy
+        --compose-file /opt/stacks/airflow.yaml
+        {{ stack_name }}
+      environment:
+        AIRFLOW_IMAGE: "{{ hostvars.localhost.airflow_image }}"
+        KEYVAULT_NAME: "{{ keyvault_name }}"
+        REPO_URL: "{{ repo_url }}"
+        REPO_REF: "{{ repo_ref }}"
+      register: stack_deploy
+      changed_when: >
+        'Creating service' in stack_deploy.stdout or
+        'Updating service' in stack_deploy.stdout

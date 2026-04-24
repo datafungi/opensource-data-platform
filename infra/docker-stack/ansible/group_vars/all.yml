@@ -15,3 +15,11 @@ name_prefix: data-platform-dev
 
 # Docker Swarm stack name. Used as the namespace for all services and networks.
 stack_name: data-platform
+
+# Storage account name used for Airflow remote logs and database backups.
+# Resolve with: terraform -chdir=../terraform/azure output -raw backup_storage_account_name
+storage_account_name: "dataplatformdevlknspy"
+
+# Git repository synced to all cluster nodes by git-sync for DAG and plugin delivery.
+repo_url: "git@github.com:datafungi/opensource-data-platform.git"
+repo_ref: "main"

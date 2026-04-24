@@ -31,3 +31,15 @@ resource "azurerm_storage_container" "backups" {
   name               = "backups"
   storage_account_id = azurerm_storage_account.backups.id
 }
+
+resource "azurerm_storage_container" "airflow_logs" {
+  name               = "airflow-logs"
+  storage_account_id = azurerm_storage_account.backups.id
+}
+
+# Cluster VMs write Airflow task logs and read backups via managed identity.
+resource "azurerm_role_assignment" "cluster_storage" {
+  scope                = azurerm_storage_account.backups.id
+  role_definition_name = "Storage Blob Data Contributor"
+  principal_id         = var.cluster_identity_principal_id
+}
