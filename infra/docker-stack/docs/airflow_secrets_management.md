@@ -5,7 +5,7 @@
 |--------------------|-------------------------------------|
 | **Version**        | 1.0                                 |
 | **Scope**          | Apache Airflow on Docker Swarm Mode |
-| **Applies to**     | Airflow 2.x and 3.x                 |
+| **Applies to**     | Airflow 3.x (2.x notes inline)      |
 | **Classification** | Internal / Operational              |
 
 **About This Document**
@@ -197,15 +197,13 @@ airflow_db_conn_v2
 Below is a reference stack file using `_CMD` environment variables to read all infrastructure secrets from Docker Swarm secrets at container startup. Save this as `docker-compose.yml`.
 
 ```yaml
-version: '3.8'
-
 x-airflow-common: &airflow-common
-  image: apache/airflow:2.9.0
+  image: apache/airflow:3-latest
   environment:
     # Infrastructure secrets via _CMD (reads from /run/secrets/)
     AIRFLOW__CORE__FERNET_KEY_CMD: "cat /run/secrets/airflow_fernet_key"
-    AIRFLOW__WEBSERVER__SECRET_KEY_CMD: "cat /run/secrets/airflow_api_secret"  # 2.x
-    # AIRFLOW__API__SECRET_KEY_CMD: "cat /run/secrets/airflow_api_secret"      # 3.x
+    AIRFLOW__API__SECRET_KEY_CMD: "cat /run/secrets/airflow_api_secret"        # 3.x
+    # AIRFLOW__WEBSERVER__SECRET_KEY_CMD: "cat /run/secrets/airflow_api_secret" # 2.x
     AIRFLOW__DATABASE__SQL_ALCHEMY_CONN_CMD: "cat /run/secrets/airflow_db_conn"
     AIRFLOW__CELERY__BROKER_URL_CMD: "cat /run/secrets/airflow_broker_url"
     AIRFLOW__CELERY__RESULT_BACKEND_CMD: "cat /run/secrets/airflow_result_backend"
@@ -231,9 +229,9 @@ x-airflow-common: &airflow-common
     - ./logs:/opt/airflow/logs
 
 services:
-  airflow-webserver:
+  airflow-apiserver:
     <<: *airflow-common
-    command: webserver
+    command: api-server
     ports:
       - "8080:8080"
     deploy:
@@ -573,7 +571,7 @@ jobs:
       - name: Health check
         run: |
           sleep 30
-          curl -f http://localhost:8080/health || exit 1
+          curl -f http://localhost:8080/api/v2/version || exit 1
 
       - name: Notify on failure
         if: failure()
@@ -620,6 +618,8 @@ To force an immediate worker restart without redeploying the full stack:
 
 ```bash
 docker service update --force airflow_airflow-worker
+# Or target the api-server if the secret is needed there:
+# docker service update --force airflow_airflow-apiserver
 ```
 
 ---
@@ -628,14 +628,14 @@ docker service update --force airflow_airflow-worker
 
 Each Docker service must explicitly list every secret it needs to access. A secret mounted on the webserver is **not** automatically available to workers. Be deliberate:
 
-| Secret               | Webserver | Scheduler | Worker | Triggerer | Notes                     |
-|----------------------|-----------|-----------|--------|-----------|---------------------------|
-| `airflow_fernet_key` | ✅         | ✅         | ✅      | ✅         | All components decrypt DB |
-| `airflow_api_secret` | ✅         | ✅         | ❌      | ❌         | Web/API only              |
-| `airflow_db_conn`    | ✅         | ✅         | ✅      | ✅         | All need metadata DB      |
-| `airflow_broker_url` | ❌         | ✅         | ✅      | ✅         | Celery components         |
-| `airflow_conn_*`     | ❌         | ❌         | ✅      | ✅         | Task execution only       |
-| `airflow_var_*`      | ❌         | ❌         | ✅      | ✅         | Task execution only       |
+| Secret               | API server | Scheduler | Worker | Triggerer | Notes                     |
+|----------------------|------------|-----------|--------|-----------|---------------------------|
+| `airflow_fernet_key` | ✅          | ✅         | ✅      | ✅         | All components decrypt DB |
+| `airflow_api_secret` | ✅          | ✅         | ❌      | ❌         | API server only           |
+| `airflow_db_conn`    | ✅          | ✅         | ✅      | ✅         | All need metadata DB      |
+| `airflow_broker_url` | ❌          | ✅         | ✅      | ✅         | Celery components         |
+| `airflow_conn_*`     | ❌          | ❌         | ✅      | ✅         | Task execution only       |
+| `airflow_var_*`      | ❌          | ❌         | ✅      | ✅         | Task execution only       |
 
 ---
 

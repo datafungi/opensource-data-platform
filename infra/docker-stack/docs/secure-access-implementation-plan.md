@@ -309,12 +309,12 @@ the new Traefik path (443 via Cloudflare). Test the Traefik path:
 ## Phase 3 — NSG Hardening
 
 **Effort:** ~30 minutes  
-**Infrastructure changes:** Terraform (`infra/docker-stack/terraform/azure/modules/networking/main.tf`)  
+**Infrastructure changes:** Terraform (`infra/docker-stack/terraform/azure/modules/network/main.tf`)  
 **Rollback:** Restore the original three rules in `main.tf` and run `terraform apply`.
 
-### Step 3.1 — Update networking/main.tf
+### Step 3.1 — Update network/main.tf
 
-**Remove** the following three resource blocks from `networking/main.tf`:
+**Remove** the following three resource blocks from `network/main.tf`:
 
 ```hcl
 # DELETE THIS BLOCK
@@ -488,7 +488,7 @@ the Azure AD group policy.
 
 | Category | Files / Systems Changed | Phase |
 |----------|------------------------|-------|
-| Terraform | `infra/docker-stack/terraform/azure/modules/networking/main.tf` — remove 3 open rules, add 2 Cloudflare-scoped rules | 3 |
+| Terraform | `infra/docker-stack/terraform/azure/modules/network/main.tf` — remove 3 open rules, add 2 Cloudflare-scoped rules | 3 |
 | Docker Swarm | `infra/docker-stack/compose/data-platform.yml` — add traefik service, add labels to airflow-apiserver, grafana, portainer | 2 |
 | Cloudflare Dashboard | DNS records (3 proxied A records), Access Applications (3), Identity Provider (Azure AD OIDC config) | 1 |
 | Azure AD / Entra ID | OIDC app registration for Cloudflare Zero Trust, `data-platform-admins` security group | 1 |
@@ -503,7 +503,7 @@ the Azure AD group policy.
 |------|-----------|--------|-----------|
 | Traefik misconfiguration causes all services unreachable via HTTPS | Medium | High | Keep NSG open on ports 8080/3000/9443 until Phase 2 is fully validated (Step 2.7). Do not proceed to Phase 3 until end-to-end test passes. |
 | ACME cert issuance fails due to Let's Encrypt rate limits or DNS propagation delay | Low | Medium | Use DNS-01 challenge (avoids port 80 requirement and propagation is faster). Test with Let's Encrypt staging endpoint first: add `--certificatesresolvers.letsencrypt.acme.caserver=https://acme-staging-v02.api.letsencrypt.org/directory` to Traefik command. |
-| Cloudflare IP range changes cause NSG to block legitimate traffic | Low | High | Pin the IP list in a `locals` block in `networking/main.tf`. Review https://www.cloudflare.com/ips/ when running `terraform apply`. Consider a CI check that compares the pinned list against the live endpoint. |
+| Cloudflare IP range changes cause NSG to block legitimate traffic | Low | High | Pin the IP list in a `locals` block in `network/main.tf`. Review https://www.cloudflare.com/ips/ when running `terraform apply`. Consider a CI check that compares the pinned list against the live endpoint. |
 | Azure AD OIDC misconfiguration blocks all users from logging in | Medium | High | Test the IdP connection using Cloudflare's "Test" button (Step 1.4) before creating Access Applications. Test with a single user account before assigning the group policy. |
 | Portainer HTTPS backend incompatibility with Traefik (certificate chain errors) | Low | Low | Route Traefik to Portainer's HTTP listener on port 9000 rather than HTTPS on 9443. TLS terminates at Traefik; the Swarm overlay path is trusted. |
 | Origin IP leakage via DNS (grey cloud set accidentally) | Low | High | Enforce a team convention: never set Cloudflare DNS records for these subdomains to "DNS only". Check orange cloud status after any DNS update. |

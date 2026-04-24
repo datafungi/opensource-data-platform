@@ -148,7 +148,7 @@ membership enforcement.
 ## 5. NSG Changes Required
 
 The following changes must be applied to the Azure NSG resource `azurerm_network_security_group.nodes`
-in `infra/docker-stack/terraform/azure/modules/networking/main.tf`:
+in `infra/docker-stack/terraform/azure/modules/network/main.tf`:
 
 | Rule Name | Action | Port | Source | Priority | Reason |
 |-----------|--------|------|--------|----------|--------|
