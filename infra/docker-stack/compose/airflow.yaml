@@ -32,7 +32,10 @@ x-airflow-common: &airflow-common
     AIRFLOW__LOGGING__REMOTE_LOG_CONN_ID: "azure_blob_logs"
     AIRFLOW__LOGGING__DELETE_LOCAL_LOGS: "true"
   volumes:
-  - dags:/dags:ro
+  - type: bind
+    source: /opt/dags
+    target: /dags
+    read_only: true
   configs:
   - source: airflow_entrypoint
     target: /opt/scripts/airflow-entrypoint.sh
@@ -266,7 +269,9 @@ services:
       GITSYNC_SSH_KEY_FILE: /etc/git-secret/ssh
       GITSYNC_SSH_KNOWN_HOSTS_FILE: /etc/git-secret/known_hosts
     volumes:
-    - dags:/dags
+    - type: bind
+      source: /opt/dags
+      target: /dags
     configs:
     - source: gitsync_known_hosts
       target: /etc/git-secret/known_hosts
@@ -295,10 +300,6 @@ services:
 networks:
   data-platform:
     external: true
-
-volumes:
-  dags:
-    driver: local
 
 configs:
   airflow_entrypoint:

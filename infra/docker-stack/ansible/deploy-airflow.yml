@@ -125,7 +125,23 @@
       changed_when: true
 
 
-# ── Play 2: Create Docker resources and deploy stack ─────────────────────────
+# ── Play 2: Prepare DAG directory on all nodes ───────────────────────────────
+- name: Create DAG sync directory on all nodes
+  hosts: swarm_managers
+  gather_facts: false
+
+  tasks:
+    - name: Create /opt/dags owned by git-sync (UID 65533)
+      ansible.builtin.file:
+        path: /opt/dags
+        state: directory
+        owner: "65533"
+        group: "65533"
+        mode: "0755"
+      become: true
+
+
+# ── Play 3: Create Docker resources and deploy stack ─────────────────────────
 - name: Deploy Airflow stack
   hosts: swarm_primary
   gather_facts: false
