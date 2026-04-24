@@ -13,7 +13,7 @@ services:
         target: /docker-entrypoint-initdb.d/init.sh
         mode: 0755
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - /mnt/gluster/postgres-data:/var/lib/postgresql/data
     networks:
     - data-platform
     healthcheck:
@@ -49,6 +49,9 @@ services:
 
   redis:
     image: redis:7.2-bookworm
+    command: redis-server --appendonly yes
+    volumes:
+      - /mnt/gluster/redis-data:/data
     networks:
     - data-platform
     healthcheck:
@@ -97,7 +100,3 @@ secrets:
     external: true
   postgres_polaris_password:
     external: true
-
-volumes:
-  postgres_data:
-    driver: local

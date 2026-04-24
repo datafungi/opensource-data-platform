@@ -11,7 +11,7 @@
 #   ansible-playbook deploy-databases.yml
 #
 # Override vars if needed:
-#   -e keyvault_name=$(terraform -chdir=../terraform/azure output -raw key_vault_name)
+#   -e keyvault_name=$(terraform -chdir=../terraform output -raw key_vault_name)
 #   -e name_prefix=data-platform-dev
 
 # ── Play 1: Read Postgres credentials from Key Vault ─────────────────────────
@@ -82,8 +82,26 @@
     - name: Create Postgres init script Docker config
       community.docker.docker_config:
         name: postgres_init_db
-        data: "{{ lookup('file', playbook_dir + '/../scripts/postgres-init.sh') }}"
+        data: "{{ lookup('file', playbook_dir + '/../../../scripts/postgres-init.sh') }}"
         state: present
+
+    - name: Verify shared GlusterFS mount directories exist
+      ansible.builtin.stat:
+        path: "{{ item }}"
+      loop:
+        - /mnt/gluster/postgres-data
+        - /mnt/gluster/redis-data
+      register: gluster_mounts
+
+    - name: Fail if shared GlusterFS mount is not ready
+      ansible.builtin.assert:
+        that:
+          - item.stat.exists
+          - item.stat.isdir
+        fail_msg: >-
+          Required shared directory {{ item.item }} is missing on the Swarm manager.
+          Run providers/azure/terraform/scripts/bootstrap-gluster.sh before deploy-databases.yml.
+      loop: "{{ gluster_mounts.results }}"
 
     # node-1 hosts stateful services (Postgres, Redis). node labels are stable
     # after first run; docker node update is idempotent.
@@ -114,7 +132,7 @@
 
     - name: Copy databases compose file
       ansible.builtin.copy:
-        src: "{{ playbook_dir }}/../compose/databases.yaml"
+        src: "{{ playbook_dir }}/../../../compose/databases.yaml"
         dest: /opt/stacks/databases.yaml
         mode: "0644"
       become: true

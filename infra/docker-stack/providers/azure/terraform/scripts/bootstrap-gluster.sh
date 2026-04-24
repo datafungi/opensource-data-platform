@@ -144,8 +144,12 @@ ssh_node1 "
   sudo mkdir -p $GLUSTER_MOUNT/postgres-data
   sudo mkdir -p $GLUSTER_MOUNT/redis-data
   sudo mkdir -p $GLUSTER_MOUNT/polaris-data
+  sudo mkdir -p $GLUSTER_MOUNT/prometheus-data
+  sudo mkdir -p $GLUSTER_MOUNT/grafana-data
   sudo chown -R 999:999 $GLUSTER_MOUNT/postgres-data  # postgres container UID
   sudo chown -R 999:999 $GLUSTER_MOUNT/redis-data     # redis container UID
+  sudo chown -R 65534:65534 $GLUSTER_MOUNT/prometheus-data
+  sudo chown -R 472:472 $GLUSTER_MOUNT/grafana-data
   sudo ls -la $GLUSTER_MOUNT/
 "
 
@@ -159,7 +163,7 @@ echo " GlusterFS bootstrap complete."
 echo ""
 echo " Volume:     $VOLUME_NAME"
 echo " Mount:      $GLUSTER_MOUNT"
-echo " Sub-dirs:   postgres-data/  redis-data/  polaris-data/"
+echo " Sub-dirs:   postgres-data/  redis-data/  polaris-data/  prometheus-data/  grafana-data/"
 echo ""
 echo " Next step: deploy the Docker Swarm stack"
 echo "   ssh ${ADMIN_USER}@${NODE1_IP}"
