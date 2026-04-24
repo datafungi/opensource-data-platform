@@ -16,8 +16,16 @@ infra/
 │       ├── minio/        # MinIO object storage
 │       └── postgres/     # Shared PostgreSQL (airflow + marquez databases)
 ├── docker-stack/         # Production infrastructure (Docker Swarm on cloud VMs)
-│   └── terraform/
-│       └── azure/        # Azure: VMs, VNet, Key Vault, Storage, GlusterFS
+│   ├── compose/          # Shared Swarm stack definitions
+│   ├── scripts/          # Shared runtime/bootstrap scripts
+│   └── providers/
+│       ├── azure/        # Azure-specific IaC and deployment automation
+│       │   ├── ansible/
+│       │   └── terraform/
+│       ├── aws/
+│       │   └── terraform/
+│       └── gcp/
+│           └── terraform/
 ├── k8s-stack/            # Kubernetes stack (planned)
 └── ARCHITECTURE.md       # Full architecture reference for all stacks and clouds
 ```
@@ -45,12 +53,12 @@ Cloud VM-based Docker Swarm cluster. Currently implemented for **Azure**; GCP an
 Provision with Terraform:
 
 ```bash
-cd infra/docker-stack/terraform/azure
+cd infra/docker-stack/providers/azure/terraform
 terraform init
 terraform plan
 terraform apply
 ```
 
-After `apply`, run `infra/docker-stack/terraform/azure/scripts/bootstrap-gluster.sh` to configure the GlusterFS shared volume across all three nodes.
+After `apply`, run `infra/docker-stack/providers/azure/terraform/scripts/bootstrap-gluster.sh` to configure the GlusterFS shared volume across all three nodes.
 
 See [`ARCHITECTURE.md`](ARCHITECTURE.md) for full design decisions, cost estimates, and cross-cloud comparison.

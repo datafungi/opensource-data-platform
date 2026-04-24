@@ -175,7 +175,7 @@
     - name: Create airflow_entrypoint Docker config
       community.docker.docker_config:
         name: airflow_entrypoint
-        data: "{{ lookup('file', playbook_dir + '/../scripts/airflow-entrypoint.sh') }}"
+        data: "{{ lookup('file', playbook_dir + '/../../../scripts/airflow-entrypoint.sh') }}"
         state: present
 
     - name: Download git-sync SSH deploy key from Key Vault to temp file
@@ -219,14 +219,14 @@
 
     - name: Copy airflow-init compose file
       ansible.builtin.copy:
-        src: "{{ playbook_dir }}/../compose/airflow-init.yaml"
+        src: "{{ playbook_dir }}/../../../compose/airflow-init.yaml"
         dest: /opt/stacks/airflow-init.yaml
         mode: "0644"
       become: true
 
     - name: Copy airflow compose file
       ansible.builtin.copy:
-        src: "{{ playbook_dir }}/../compose/airflow.yaml"
+        src: "{{ playbook_dir }}/../../../compose/airflow.yaml"
         dest: /opt/stacks/airflow.yaml
         mode: "0644"
       become: true

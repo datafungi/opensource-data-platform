@@ -20,14 +20,14 @@ Generates Postgres passwords, stores them in Key Vault, and assembles the
 Airflow SQL Alchemy connection string:
 
 ```bash
-cd infra/docker-stack/terraform/azure
+cd infra/docker-stack/providers/azure/terraform
 terraform apply
 ```
 
 ### 2. Fill in group vars
 
 Resolve the Key Vault name from Terraform output and set it in
-`ansible/group_vars/all.yml`:
+`providers/azure/ansible/group_vars/all.yml`:
 
 ```bash
 terraform output -raw key_vault_name
@@ -37,7 +37,7 @@ terraform output -raw key_vault_name
 ### 3. Install the Ansible collection
 
 ```bash
-cd infra/docker-stack/ansible
+cd infra/docker-stack/providers/azure/ansible
 ansible-galaxy collection install -r requirements.yml
 ```
 
@@ -51,7 +51,7 @@ tailnet and the subnet router (`10.54.0.4`) is advertising `10.54.0.0/16`.
 ## Running the playbook
 
 ```bash
-cd infra/docker-stack/ansible
+cd infra/docker-stack/providers/azure/ansible
 ansible-playbook deploy-databases.yml
 ```
 
@@ -105,7 +105,7 @@ prefix it with the stack name.
 Terraform manages the passwords. To rotate:
 
 ```bash
-cd infra/docker-stack/terraform/azure
+cd infra/docker-stack/providers/azure/terraform
 terraform apply \
   -target=random_password.postgres_superuser \
   -target=random_password.postgres_airflow \

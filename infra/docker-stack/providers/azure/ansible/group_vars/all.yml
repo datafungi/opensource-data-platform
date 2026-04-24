@@ -1,23 +1,23 @@
 # SSH connection — key is written to ~/.ssh/ by `terraform apply`.
-# Resolve with: terraform -chdir=../terraform/azure output -raw ssh_private_key_path
+# Resolve with: terraform -chdir=../terraform output -raw ssh_private_key_path
 ansible_user: azureuser
 ansible_ssh_private_key_file: "~/.ssh/data-platform-dev.pem"
 
 # Azure Key Vault name.
-# Resolve with: terraform -chdir=../terraform/azure output -raw key_vault_name
+# Resolve with: terraform -chdir=../terraform output -raw key_vault_name
 keyvault_name: "data-platform-de-kv-ge8c"
 
 # VM name prefix — must match the Terraform name_prefix local (project + environment).
 # Cloud-init sets each VM's hostname to "<name_prefix>-node-<N>", which is how
 # Docker Swarm identifies nodes. Resolve with:
-#   terraform -chdir=../terraform/azure output (inspect the resource names)
+#   terraform -chdir=../terraform output (inspect the resource names)
 name_prefix: data-platform-dev
 
 # Docker Swarm stack name. Used as the namespace for all services and networks.
 stack_name: data-platform
 
 # Storage account name used for Airflow remote logs and database backups.
-# Resolve with: terraform -chdir=../terraform/azure output -raw backup_storage_account_name
+# Resolve with: terraform -chdir=../terraform output -raw backup_storage_account_name
 storage_account_name: "dataplatformdevlknspy"
 
 # Git repository synced to all cluster nodes by git-sync for DAG and plugin delivery.
