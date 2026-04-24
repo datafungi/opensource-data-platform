@@ -12,3 +12,8 @@ output "backup_container_name" {
   description = "Name of the blob container used for pg_dump and Redis backups."
   value       = azurerm_storage_container.backups.name
 }
+
+output "airflow_logs_container_name" {
+  description = "Name of the blob container used for Airflow remote task logs."
+  value       = azurerm_storage_container.airflow_logs.name
+}

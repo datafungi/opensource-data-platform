@@ -116,6 +116,14 @@
       changed_when: true
       no_log: true
 
+    - name: Set Azure Blob logging connection in Key Vault
+      ansible.builtin.command: >
+        az keyvault secret set
+        --vault-name {{ keyvault_name }}
+        --name airflow-connections-azure-blob-logs
+        --value "wasb://{{ storage_account_name }}"
+      changed_when: true
+
 
 # ── Play 2: Create Docker resources and deploy stack ─────────────────────────
 - name: Deploy Airflow stack
@@ -154,6 +162,33 @@
         data: "{{ lookup('file', playbook_dir + '/../scripts/airflow-entrypoint.sh') }}"
         state: present
 
+    - name: Read git-sync SSH deploy key from Key Vault
+      ansible.builtin.command: >
+        az keyvault secret show
+        --vault-name {{ keyvault_name }}
+        --name gitsync-ssh-key
+        --query value -o tsv
+      delegate_to: localhost
+      register: gitsync_ssh_key
+      changed_when: false
+      no_log: true
+
+    - name: Create gitsync_ssh_key Docker secret
+      community.docker.docker_secret:
+        name: gitsync_ssh_key
+        data: "{{ gitsync_ssh_key.stdout }}"
+        state: present
+      no_log: true
+
+    - name: Create gitsync_known_hosts Docker config
+      community.docker.docker_config:
+        name: gitsync_known_hosts
+        data: |
+          github.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl
+          github.com ecdsa-sha2-nistp256 AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlzdHAyNTYAAABBBEmKSENjQEezOmxkZMy7opKgwFoobEkU2oyUsz5p3UhIKVS5tyGjKgDfA8xHQEFD5FG7b0XuM2VZr1B8+Yisnuo=
+          github.com ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQCj7ndNxQowgcQnjshcLrqPEiiphnt+VTTvDP6mHBL9j1aNUkY4Ue1gvwnGLVlOhGeYrnZaMgRK6+PKCUXaDbC7qtbW8gIkhL7aGCsOr/C56SJMy/BCZfxd1nWzAOxSDPgVsmerOBYfNqltV9/hWCqBywINIR+5dIg6JTJ72pcEpEjcYgXkE2YEFV+uzbwCILaIIEEBvsS2gNMflJblS/rXvkJAnTAhOWA5+rH5y0y1VOSBnmGF5VPvuRW7c+JyL9zUqkMOcFHCKBzBcRerFf5GxMpzHzM9yYR9B8P1BjfVovLkgZUMLjsJHHLiFPvdLqnkKPjd0xyj+bMW1k2lQjdkLXSmfz2HuSNvkiiBiKCZwQHJhwKF5IDzNmOJk=
+        state: present
+
     - name: Create stack directory
       ansible.builtin.file:
         path: /opt/stacks
@@ -188,6 +223,7 @@
       changed_when: true
       no_log: true
 
+
     - name: Wait for airflow-init to complete
       ansible.builtin.command: >
         docker service ps {{ stack_name }}_airflow-init
@@ -207,6 +243,8 @@
       environment:
         AIRFLOW_IMAGE: "{{ hostvars.localhost.airflow_image }}"
         KEYVAULT_NAME: "{{ keyvault_name }}"
+        REPO_URL: "{{ repo_url }}"
+        REPO_REF: "{{ repo_ref }}"
       register: stack_deploy
       changed_when: >
         'Creating service' in stack_deploy.stdout or

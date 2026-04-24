@@ -92,11 +92,12 @@ module "network" {
 module "storage" {
   source = "./modules/storage"
 
-  resource_group_name   = azurerm_resource_group.platform.name
-  location              = var.location
-  name_prefix           = local.name_prefix
-  backup_retention_days = var.backup_retention_days
-  tags                  = local.common_tags
+  resource_group_name           = azurerm_resource_group.platform.name
+  location                      = var.location
+  name_prefix                   = local.name_prefix
+  backup_retention_days         = var.backup_retention_days
+  cluster_identity_principal_id = azurerm_user_assigned_identity.cluster.principal_id
+  tags                          = local.common_tags
 }
 
 module "keyvault" {

@@ -24,3 +24,8 @@ variable "tags" {
   default     = {}
   description = "Tags applied to the storage account."
 }
+
+variable "cluster_identity_principal_id" {
+  type        = string
+  description = "Principal ID of the cluster managed identity — granted Storage Blob Data Contributor on this account."
+}

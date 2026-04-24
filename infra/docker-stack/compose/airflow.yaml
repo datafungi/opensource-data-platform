@@ -4,9 +4,11 @@ x-airflow-common: &airflow-common
   environment: &airflow-common-env
     AIRFLOW__CORE__AUTH_MANAGER: airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager
     AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: "true"
+    AIRFLOW__CORE__DAGS_FOLDER: /dags/repo/airflow/dags
     AIRFLOW__CORE__EXECUTION_API_SERVER_URL: "http://airflow-apiserver:8080/execution/"
     AIRFLOW__CORE__EXECUTOR: CeleryExecutor
     AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+    AIRFLOW__CORE__PLUGINS_FOLDER: /dags/repo/airflow/dags/plugins
     AIRFLOW__CORE__TEST_CONNECTION: "Enabled"
     AIRFLOW__METRICS__STATSD_HOST: statsd-exporter
     AIRFLOW__METRICS__STATSD_ON: "true"
@@ -23,6 +25,14 @@ x-airflow-common: &airflow-common
     AIRFLOW__DATABASE__SQL_ALCHEMY_CONN_SECRET: sql-alchemy-conn
     AIRFLOW__CELERY__BROKER_URL_SECRET: broker-url
     AIRFLOW__CELERY__RESULT_BACKEND_SECRET: result-backend
+    # Remote logging — task logs written to Azure Blob Storage via managed identity.
+    # Connection azure_blob_logs is resolved from Key Vault by the secrets backend.
+    AIRFLOW__LOGGING__REMOTE_LOGGING: "true"
+    AIRFLOW__LOGGING__REMOTE_BASE_LOG_FOLDER: "wasb://airflow-logs"
+    AIRFLOW__LOGGING__REMOTE_LOG_CONN_ID: "azure_blob_logs"
+    AIRFLOW__LOGGING__DELETE_LOCAL_LOGS: "true"
+  volumes:
+  - dags:/dags:ro
   configs:
   - source: airflow_entrypoint
     target: /opt/scripts/airflow-entrypoint.sh
@@ -244,14 +254,60 @@ services:
         delay: 10s
         max_attempts: 3
 
+  git-sync:
+    image: registry.k8s.io/git-sync/git-sync:v4.4.0
+    environment:
+      GITSYNC_REPO: "${REPO_URL}"
+      GITSYNC_REF: "${REPO_REF:-main}"
+      GITSYNC_ROOT: /dags
+      GITSYNC_LINK: repo
+      GITSYNC_PERIOD: 60s
+      GITSYNC_DEPTH: "1"
+      GITSYNC_SSH_KEY_FILE: /etc/git-secret/ssh
+      GITSYNC_SSH_KNOWN_HOSTS_FILE: /etc/git-secret/known_hosts
+    volumes:
+    - dags:/dags
+    configs:
+    - source: gitsync_known_hosts
+      target: /etc/git-secret/known_hosts
+      mode: 0444
+    secrets:
+    - source: gitsync_ssh_key
+      target: /etc/git-secret/ssh
+      uid: "65533"
+      mode: 0400
+    networks:
+    - data-platform
+    deploy:
+      mode: global
+      resources:
+        limits:
+          cpus: "0.10"
+          memory: 128M
+        reservations:
+          cpus: "0.05"
+          memory: 64M
+      restart_policy:
+        condition: on-failure
+        delay: 10s
+        max_attempts: 3
+
 networks:
   data-platform:
     external: true
 
+volumes:
+  dags:
+    driver: local
+
 configs:
   airflow_entrypoint:
+    external: true
+  gitsync_known_hosts:
     external: true
 
 secrets:
   azure_mi_client_id:
+    external: true
+  gitsync_ssh_key:
     external: true
