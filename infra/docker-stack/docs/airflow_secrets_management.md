@@ -187,10 +187,10 @@ underscores replaced with hyphens and is lowercased.
 
 | Type       | Prefix                | Example key        | Full Key Vault secret name         |
 |------------|-----------------------|--------------------|------------------------------------|
-| Config     | `airflow-config`      | `fernet-key`       | `airflow-config--fernet-key`       |
-| Config     | `airflow-config`      | `sql-alchemy-conn` | `airflow-config-sql-alchemy-conn`  |
-| Connection | `airflow-connections` | `my_postgres`      | `airflow-connections--my-postgres` |
-| Variable   | `airflow-variables`   | `output_path`      | `airflow-variables--output-path`   |
+| Config     | `airflow-config`      | `fernet-key`       | `airflow-config-fernet-key`       |
+| Config     | `airflow-config`      | `sql-alchemy-conn` | `airflow-config-sql-alchemy-conn` |
+| Connection | `airflow-connections` | `my_postgres`      | `airflow-connections-my-postgres` |
+| Variable   | `airflow-variables`   | `output_path`      | `airflow-variables-output-path`   |
 
 Postgres credential secrets use the `postgres-` prefix and are consumed as Docker secrets,
 not by Airflow's Key Vault backend directly:
@@ -210,17 +210,17 @@ Postgres passwords and the Airflow connection string are created automatically b
 ```bash
 KV="<keyvault-name>"
 
-az keyvault secret set --vault-name "$KV" --name "airflow-config--fernet-key"     --value "<fernet-key>"
-az keyvault secret set --vault-name "$KV" --name "airflow-config--api-secret-key" --value "<secret>"
-az keyvault secret set --vault-name "$KV" --name "airflow-config--broker-url"     --value "redis://redis:6379/0"
-az keyvault secret set --vault-name "$KV" --name "airflow-config--result-backend" --value "redis://redis:6379/0"
+az keyvault secret set --vault-name "$KV" --name "airflow-config-fernet-key"     --value "<fernet-key>"
+az keyvault secret set --vault-name "$KV" --name "airflow-config-api-secret-key" --value "<secret>"
+az keyvault secret set --vault-name "$KV" --name "airflow-config-broker-url"     --value "redis://redis:6379/0"
+az keyvault secret set --vault-name "$KV" --name "airflow-config-result-backend" --value "db+postgresql://airflow:<password>@postgres/airflow"
 
 # DAG connections (value must be a valid Airflow Connection URI)
-az keyvault secret set --vault-name "$KV" --name "airflow-connections--my-postgres" \
+az keyvault secret set --vault-name "$KV" --name "airflow-connections-my-postgres" \
   --value "postgresql://user:password@host:5432/mydb"
 
 # DAG variables
-az keyvault secret set --vault-name "$KV" --name "airflow-variables--output-path" \
+az keyvault secret set --vault-name "$KV" --name "airflow-variables-output-path" \
   --value "abfs://container@account.dfs.core.windows.net/output"
 ```
 
@@ -243,10 +243,10 @@ KV="<keyvault-name>"
 NEW_KEY=$(python3 -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())")
 
 # 2. Read the current key
-OLD_KEY=$(az keyvault secret show --vault-name "$KV" --name "airflow-config--fernet-key" --query value -o tsv)
+OLD_KEY=$(az keyvault secret show --vault-name "$KV" --name "airflow-config-fernet-key" --query value -o tsv)
 
 # 3. Set transition value: new,old — Airflow decrypts with either
-az keyvault secret set --vault-name "$KV" --name "airflow-config--fernet-key" --value "${NEW_KEY},${OLD_KEY}"
+az keyvault secret set --vault-name "$KV" --name "airflow-config-fernet-key" --value "${NEW_KEY},${OLD_KEY}"
 
 # 4. Restart all Airflow services to pick up the transition key
 docker service update --force data-platform_airflow-apiserver
@@ -258,7 +258,7 @@ docker exec $(docker ps -q -f name=data-platform_airflow-worker | head -1) \
   airflow rotate-fernet-key
 
 # 6. Set the clean new key only
-az keyvault secret set --vault-name "$KV" --name "airflow-config--fernet-key" --value "$NEW_KEY"
+az keyvault secret set --vault-name "$KV" --name "airflow-config-fernet-key" --value "$NEW_KEY"
 
 # 7. Restart services again to drop the old key from memory
 docker service update --force data-platform_airflow-apiserver
@@ -270,7 +270,7 @@ docker service update --force data-platform_airflow-worker
 
 ```bash
 # Update the value in Key Vault
-az keyvault secret set --vault-name "$KV" --name "airflow-config--api-secret-key" --value "$(openssl rand -hex 32)"
+az keyvault secret set --vault-name "$KV" --name "airflow-config-api-secret-key" --value "$(openssl rand -hex 32)"
 
 # Restart the affected services (all sessions are invalidated for the API key)
 docker service update --force data-platform_airflow-apiserver
@@ -284,7 +284,7 @@ after updating them.
 
 ```bash
 az keyvault secret set --vault-name "$KV" \
-  --name "airflow-connections--my-postgres" \
+  --name "airflow-connections-my-postgres" \
   --value "postgresql://user:new_password@host:5432/mydb"
 ```
 
@@ -375,10 +375,10 @@ that Terraform does not generate need to be set manually:
     --name {{ item.name }}
     --value {{ item.value }}
   loop:
-    - { name: "airflow-config--fernet-key",    value: "{{ airflow_fernet_key }}" }
-    - { name: "airflow-config--api-secret-key", value: "{{ airflow_api_secret }}" }
-    - { name: "airflow-config--broker-url",     value: "{{ airflow_broker_url }}" }
-    - { name: "airflow-config--result-backend", value: "{{ airflow_result_backend }}" }
+    - { name: "airflow-config-fernet-key",     value: "{{ airflow_fernet_key }}" }
+    - { name: "airflow-config-api-secret-key", value: "{{ airflow_api_secret }}" }
+    - { name: "airflow-config-broker-url",     value: "{{ airflow_broker_url }}" }
+    - { name: "airflow-config-result-backend", value: "{{ airflow_result_backend }}" }
   delegate_to: localhost
   no_log: true
 ```

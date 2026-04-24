@@ -1,0 +1,51 @@
+services:
+  airflow-init:
+    image: ${AIRFLOW_IMAGE}
+    entrypoint: ["/opt/scripts/airflow-entrypoint.sh"]
+    user: "0:0"
+    environment:
+      AIRFLOW__CORE__AUTH_MANAGER: airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager
+      AIRFLOW__CORE__EXECUTOR: CeleryExecutor
+      AIRFLOW__SECRETS__BACKEND: airflow.providers.microsoft.azure.secrets.key_vault.AzureKeyVaultBackend
+      AIRFLOW__SECRETS__BACKEND_KWARGS: '{"vault_url": "https://${KEYVAULT_NAME}.vault.azure.net/", "connections_prefix": "airflow-connections", "variables_prefix": "airflow-variables", "config_prefix": "airflow-config"}'
+      AIRFLOW__CORE__FERNET_KEY_SECRET: fernet-key
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN_SECRET: sql-alchemy-conn
+      _AIRFLOW_DB_MIGRATE: "true"
+      _AIRFLOW_WWW_USER_CREATE: "${AIRFLOW_CREATE_ADMIN:-false}"
+      _AIRFLOW_WWW_USER_USERNAME: admin
+      _AIRFLOW_WWW_USER_PASSWORD: "${AIRFLOW_ADMIN_PASSWORD:-}"
+      _AIRFLOW_WWW_USER_EMAIL: nguyen.vo@datafungi.net
+      _AIRFLOW_WWW_USER_FIRSTNAME: Admin
+      _AIRFLOW_WWW_USER_LASTNAME: User
+      _AIRFLOW_WWW_USER_ROLE: Admin
+    configs:
+    - source: airflow_entrypoint
+      target: /opt/scripts/airflow-entrypoint.sh
+      mode: 0755
+    networks:
+    - data-platform
+    secrets:
+    - azure_mi_client_id
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: none
+      resources:
+        limits:
+          cpus: "0.50"
+          memory: 1G
+        reservations:
+          cpus: "0.25"
+          memory: 512M
+
+networks:
+  data-platform:
+    external: true
+
+configs:
+  airflow_entrypoint:
+    external: true
+
+secrets:
+  azure_mi_client_id:
+    external: true
