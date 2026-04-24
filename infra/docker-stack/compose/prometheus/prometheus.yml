@@ -1,6 +1,7 @@
-# Prometheus configuration for the data platform Docker Swarm stack.
-# Deployed via Docker config: prometheus_config (see data-platform.yml).
-# Scraped targets use Docker Swarm overlay DNS names.
+# Prometheus configuration for the standalone observability stack.
+# Deployed via Docker config: prometheus_config (see monitor.yaml).
+# Scraped targets use Docker Swarm overlay DNS names on the shared data-platform
+# overlay network.
 
 global:
   scrape_interval: 15s

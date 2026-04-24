@@ -2,21 +2,21 @@ services:
   prometheus:
     image: prom/prometheus:latest
     command:
-    - "--config.file=/etc/prometheus/prometheus.yml"
-    - "--storage.tsdb.path=/prometheus"
-    - "--web.console.libraries=/usr/share/prometheus/console_libraries"
-    - "--web.console.templates=/usr/share/prometheus/consoles"
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--web.console.libraries=/usr/share/prometheus/console_libraries"
+      - "--web.console.templates=/usr/share/prometheus/consoles"
     configs:
-    - source: prometheus_config
-      target: /etc/prometheus/prometheus.yml
+      - source: prometheus_config
+        target: /etc/prometheus/prometheus.yml
     volumes:
-    - prometheus-data:/prometheus
+      - /mnt/gluster/prometheus-data:/prometheus
     ports:
-    - "9090:9090"
+      - "9090:9090"
     networks:
-    - data-platform
+      - data-platform
     healthcheck:
-      test: [ "CMD-SHELL", "wget -qO- http://localhost:9090/-/healthy || exit 1" ]
+      test: ["CMD-SHELL", "wget -qO- http://localhost:9090/-/healthy || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -25,7 +25,7 @@ services:
       replicas: 1
       placement:
         constraints:
-        - node.labels.stateful == true
+          - node.labels.nodename == node3
       resources:
         limits:
           cpus: "0.20"
@@ -33,6 +33,18 @@ services:
         reservations:
           cpus: "0.10"
           memory: 256M
+      update_config:
+        parallelism: 1
+        delay: 15s
+        failure_action: rollback
+        order: stop-first
+      rollback_config:
+        parallelism: 1
+        delay: 10s
+      restart_policy:
+        condition: on-failure
+        delay: 10s
+        max_attempts: 3
 
   grafana:
     image: grafana/grafana:latest
@@ -40,13 +52,15 @@ services:
       GF_SECURITY_ADMIN_PASSWORD_FILE: /run/secrets/grafana_admin_password
       GF_PATHS_DATA: /var/lib/grafana
     secrets:
-    - grafana_admin_password
+      - grafana_admin_password
+    volumes:
+      - /mnt/gluster/grafana-data:/var/lib/grafana
     ports:
-    - "3000:3000"
+      - "3000:3000"
     networks:
-    - data-platform
+      - data-platform
     healthcheck:
-      test: [ "CMD-SHELL", "wget -qO- http://localhost:3000/api/health || exit 1" ]
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3000/api/health || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -55,7 +69,7 @@ services:
       replicas: 1
       placement:
         constraints:
-        - node.labels.nodename == node3
+          - node.labels.nodename == node3
       resources:
         limits:
           cpus: "0.20"
@@ -63,3 +77,151 @@ services:
         reservations:
           cpus: "0.10"
           memory: 256M
+      update_config:
+        parallelism: 1
+        delay: 15s
+        failure_action: rollback
+        order: start-first
+      rollback_config:
+        parallelism: 1
+        delay: 10s
+      restart_policy:
+        condition: on-failure
+        delay: 10s
+        max_attempts: 3
+
+  statsd-exporter:
+    image: prom/statsd-exporter:latest
+    ports:
+      - "9102:9102"
+      - "9125:9125/udp"
+    networks:
+      - data-platform
+    deploy:
+      replicas: 1
+      resources:
+        limits:
+          cpus: "0.05"
+          memory: 64M
+        reservations:
+          cpus: "0.02"
+          memory: 32M
+      update_config:
+        parallelism: 1
+        delay: 15s
+        failure_action: rollback
+        order: start-first
+      rollback_config:
+        parallelism: 1
+        delay: 10s
+      restart_policy:
+        condition: on-failure
+        delay: 10s
+        max_attempts: 3
+
+  postgres-exporter:
+    image: prometheuscommunity/postgres-exporter:latest
+    environment:
+      DATA_SOURCE_NAME: "postgresql://airflow:CHANGE_ME@postgres:5432/airflow?sslmode=disable"
+    networks:
+      - data-platform
+    deploy:
+      replicas: 1
+      resources:
+        limits:
+          cpus: "0.05"
+          memory: 64M
+        reservations:
+          cpus: "0.02"
+          memory: 32M
+      update_config:
+        parallelism: 1
+        delay: 15s
+        failure_action: rollback
+        order: start-first
+      rollback_config:
+        parallelism: 1
+        delay: 10s
+      restart_policy:
+        condition: on-failure
+        delay: 10s
+        max_attempts: 3
+
+  redis-exporter:
+    image: oliver006/redis_exporter:latest
+    environment:
+      REDIS_ADDR: "redis://redis:6379"
+      REDIS_PASSWORD_FILE: /run/secrets/redis_password
+    secrets:
+      - redis_password
+    networks:
+      - data-platform
+    deploy:
+      replicas: 1
+      resources:
+        limits:
+          cpus: "0.05"
+          memory: 64M
+        reservations:
+          cpus: "0.02"
+          memory: 32M
+      update_config:
+        parallelism: 1
+        delay: 15s
+        failure_action: rollback
+        order: start-first
+      rollback_config:
+        parallelism: 1
+        delay: 10s
+      restart_policy:
+        condition: on-failure
+        delay: 10s
+        max_attempts: 3
+
+  node-exporter:
+    image: prom/node-exporter:latest
+    command:
+      - "--path.procfs=/host/proc"
+      - "--path.sysfs=/host/sys"
+      - "--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)"
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    networks:
+      - data-platform
+    deploy:
+      mode: global
+      resources:
+        limits:
+          cpus: "0.05"
+          memory: 64M
+        reservations:
+          cpus: "0.02"
+          memory: 32M
+      update_config:
+        parallelism: 1
+        delay: 15s
+        failure_action: rollback
+        order: start-first
+      rollback_config:
+        parallelism: 1
+        delay: 10s
+      restart_policy:
+        condition: on-failure
+        delay: 10s
+        max_attempts: 3
+
+networks:
+  data-platform:
+    external: true
+
+configs:
+  prometheus_config:
+    file: ./prometheus/prometheus.yml
+
+secrets:
+  grafana_admin_password:
+    external: true
+  redis_password:
+    external: true
