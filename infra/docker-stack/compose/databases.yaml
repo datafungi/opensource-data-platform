@@ -1,0 +1,41 @@
+services:
+  postgres:
+    image: postgres:16
+    environment:
+    volumes:
+    networks:
+    - data-platform
+    healthcheck:
+      test: [ "CMD", "pg_isready", "-U", "airflow" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+    deploy:
+      replicas: 1
+      placement:
+        constraints:
+        - node.labels.stateful == true
+
+  redis:
+    image: redis:7.2-bookworm
+    networks:
+    - data-platform
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 10s
+      timeout: 30s
+      retries: 50
+      start_period: 30s
+    deploy:
+      replicas: 1
+      placement:
+        constraints:
+        - node.labels.stateful == true
+      resources:
+        limits:
+          cpus: "0.15"
+          memory: 256M
+        reservations:
+          cpus: "0.05"
+          memory: 128M
