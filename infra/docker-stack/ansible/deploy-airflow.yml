@@ -178,23 +178,28 @@
         data: "{{ lookup('file', playbook_dir + '/../scripts/airflow-entrypoint.sh') }}"
         state: present
 
-    - name: Read git-sync SSH deploy key from Key Vault
+    - name: Download git-sync SSH deploy key from Key Vault to temp file
       ansible.builtin.command: >
-        az keyvault secret show
+        az keyvault secret download
         --vault-name {{ keyvault_name }}
         --name gitsync-ssh-key
-        --query value -o tsv
+        --file /tmp/gitsync_ssh_key
       delegate_to: localhost
-      register: gitsync_ssh_key
       changed_when: false
       no_log: true
 
     - name: Create gitsync_ssh_key Docker secret
       community.docker.docker_secret:
         name: gitsync_ssh_key
-        data: "{{ gitsync_ssh_key.stdout }}"
+        data: "{{ lookup('file', '/tmp/gitsync_ssh_key') }}"
         state: present
       no_log: true
+
+    - name: Remove temp SSH key file
+      ansible.builtin.file:
+        path: /tmp/gitsync_ssh_key
+        state: absent
+      delegate_to: localhost
 
     - name: Create gitsync_known_hosts Docker config
       community.docker.docker_config:
