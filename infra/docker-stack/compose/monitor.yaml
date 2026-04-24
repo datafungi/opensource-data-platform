@@ -1,0 +1,65 @@
+services:
+  prometheus:
+    image: prom/prometheus:latest
+    command:
+    - "--config.file=/etc/prometheus/prometheus.yml"
+    - "--storage.tsdb.path=/prometheus"
+    - "--web.console.libraries=/usr/share/prometheus/console_libraries"
+    - "--web.console.templates=/usr/share/prometheus/consoles"
+    configs:
+    - source: prometheus_config
+      target: /etc/prometheus/prometheus.yml
+    volumes:
+    - prometheus-data:/prometheus
+    ports:
+    - "9090:9090"
+    networks:
+    - data-platform
+    healthcheck:
+      test: [ "CMD-SHELL", "wget -qO- http://localhost:9090/-/healthy || exit 1" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    deploy:
+      replicas: 1
+      placement:
+        constraints:
+        - node.labels.stateful == true
+      resources:
+        limits:
+          cpus: "0.20"
+          memory: 512M
+        reservations:
+          cpus: "0.10"
+          memory: 256M
+
+  grafana:
+    image: grafana/grafana:latest
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD_FILE: /run/secrets/grafana_admin_password
+      GF_PATHS_DATA: /var/lib/grafana
+    secrets:
+    - grafana_admin_password
+    ports:
+    - "3000:3000"
+    networks:
+    - data-platform
+    healthcheck:
+      test: [ "CMD-SHELL", "wget -qO- http://localhost:3000/api/health || exit 1" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    deploy:
+      replicas: 1
+      placement:
+        constraints:
+        - node.labels.nodename == node3
+      resources:
+        limits:
+          cpus: "0.20"
+          memory: 512M
+        reservations:
+          cpus: "0.10"
+          memory: 256M
