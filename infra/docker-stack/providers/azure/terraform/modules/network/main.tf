@@ -201,7 +201,7 @@ resource "azurerm_network_security_rule" "gluster_bricks" {
   access                      = "Allow"
   protocol                    = "Tcp"
   source_port_range           = "*"
-  destination_port_range      = "49152-49200"
+  destination_port_range      = "49152-65535"
   source_address_prefix       = "10.54.1.0/24"
   destination_address_prefix  = "*"
   resource_group_name         = var.resource_group_name

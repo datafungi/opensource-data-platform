@@ -248,19 +248,21 @@ restart needed after updating them.
 
 | Service                 | Replicas              | Placement           | Port |
 |-------------------------|-----------------------|---------------------|------|
-| `airflow-apiserver`     | 1                     | any node            | 8080 |
+| `airflow-apiserver`     | 1                     | node2               | 8080 |
 | `airflow-scheduler`     | 1                     | node1               | —    |
 | `airflow-dag-processor` | 1                     | node1               | —    |
 | `airflow-triggerer`     | 1                     | node1               | —    |
 | `airflow-worker`        | global (node2, node3) | `nodename != node1` | —    |
-| `airflow-flower`        | 1                     | any node            | 5555 |
+| `airflow-flower`        | 1                     | node2               | 5555 |
 | `git-sync`              | global (all 3 nodes)  | —                   | —    |
 
-Workers are excluded from node-1 because node-1 hosts scheduler,
-dag-processor, triggerer, Postgres, and Redis — four services pinned there
-already consume most of the 8 GiB RAM budget.
+Workers and UI services are excluded from node-1 because node-1 already hosts
+scheduler, dag-processor, triggerer, Postgres, and Redis — its fixed service
+allocation sits at ~60% CPU. node2 is the lightest node and absorbs
+apiserver and flower without contention.
 
-Once healthy, the UI is at `http://10.54.1.10:8080` (accessible via Tailscale).
+Ports are published via the Swarm routing mesh and are reachable on any node
+IP. Once healthy, the UI is at `http://10.54.1.10:8080` (accessible via Tailscale).
 
 ---
 

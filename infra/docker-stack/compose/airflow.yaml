@@ -61,6 +61,9 @@ services:
       start_period: 180s
     deploy:
       replicas: 1
+      placement:
+        constraints:
+        - node.labels.nodename == node2
       resources:
         limits:
           cpus: "0.50"
@@ -79,7 +82,8 @@ services:
       restart_policy:
         condition: on-failure
         delay: 10s
-        max_attempts: 3
+        max_attempts: 5
+        window: 300s
 
   airflow-scheduler:
     <<: *airflow-common
@@ -113,7 +117,8 @@ services:
       restart_policy:
         condition: on-failure
         delay: 10s
-        max_attempts: 3
+        max_attempts: 5
+        window: 300s
 
   airflow-dag-processor:
     <<: *airflow-common
@@ -149,7 +154,8 @@ services:
       restart_policy:
         condition: on-failure
         delay: 10s
-        max_attempts: 3
+        max_attempts: 5
+        window: 300s
 
   airflow-triggerer:
     <<: *airflow-common
@@ -183,7 +189,8 @@ services:
       restart_policy:
         condition: on-failure
         delay: 10s
-        max_attempts: 3
+        max_attempts: 5
+        window: 300s
 
   airflow-worker:
     <<: *airflow-common
@@ -222,7 +229,8 @@ services:
       restart_policy:
         condition: on-failure
         delay: 10s
-        max_attempts: 3
+        max_attempts: 5
+        window: 300s
 
   airflow-flower:
     <<: *airflow-common
@@ -237,6 +245,9 @@ services:
       start_period: 30s
     deploy:
       replicas: 1
+      placement:
+        constraints:
+        - node.labels.nodename == node2
       resources:
         limits:
           cpus: "0.15"
@@ -255,7 +266,8 @@ services:
       restart_policy:
         condition: on-failure
         delay: 10s
-        max_attempts: 3
+        max_attempts: 5
+        window: 300s
 
   git-sync:
     image: registry.k8s.io/git-sync/git-sync:v4.4.0
@@ -295,7 +307,8 @@ services:
       restart_policy:
         condition: on-failure
         delay: 10s
-        max_attempts: 3
+        max_attempts: 5
+        window: 300s
 
 networks:
   data-platform:

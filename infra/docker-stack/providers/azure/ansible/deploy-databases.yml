@@ -146,3 +146,50 @@
       changed_when: >
         'Creating service' in stack_deploy.stdout or
         'Updating service' in stack_deploy.stdout
+
+    # docker stack deploy returns once the spec is accepted, not once services
+    # are healthy. Poll until Postgres and Redis actually accept connections
+    # before letting dependent services reconnect.
+    - name: Wait for Postgres to be healthy
+      ansible.builtin.command: >
+        docker run --rm
+        --network data-platform
+        postgres:16
+        pg_isready -h postgres -U postgres
+      register: pg_ready
+      until: pg_ready.rc == 0
+      retries: 30
+      delay: 10
+      changed_when: false
+
+    - name: Wait for Redis to be healthy
+      ansible.builtin.command: >
+        docker run --rm
+        --network data-platform
+        redis:7.2-bookworm
+        redis-cli -h redis ping
+      register: redis_ready
+      until: '"PONG" in redis_ready.stdout'
+      retries: 30
+      delay: 10
+      changed_when: false
+
+    # If Airflow was already running it holds stale connections. Force-update
+    # each service so Swarm rolls a fresh task that reconnects from scratch.
+    - name: Check if Airflow services are deployed
+      ansible.builtin.command: >
+        docker service ls --filter name={{ stack_name }}_airflow-scheduler -q
+      register: airflow_svc
+      changed_when: false
+
+    - name: Roll Airflow services to reconnect to databases
+      ansible.builtin.command: >
+        docker service update --force {{ stack_name }}_{{ item }}
+      loop:
+        - airflow-apiserver
+        - airflow-scheduler
+        - airflow-dag-processor
+        - airflow-triggerer
+        - airflow-worker
+        - airflow-flower
+      when: airflow_svc.stdout | length > 0

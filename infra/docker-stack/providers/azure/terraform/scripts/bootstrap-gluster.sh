@@ -19,13 +19,18 @@
 set -euo pipefail
 
 NODE1_IP="${NODE1_IP:-}"
-NODE2_IP="${NODE2_IP:-10.0.1.11}"
-NODE3_IP="${NODE3_IP:-10.0.1.12}"
+NODE2_IP="${NODE2_IP:-10.54.1.11}"
+NODE3_IP="${NODE3_IP:-10.54.1.12}"
 ADMIN_USER="${ADMIN_USER:-azureuser}"
 VOLUME_NAME="${VOLUME_NAME:-data-platform-vol}"
 BRICK_PATH="/data/gluster/brick"
 GLUSTER_MOUNT="/mnt/gluster"
-SSH_OPTS="-o StrictHostKeyChecking=no -o ConnectTimeout=10"
+SSH_KEY_PATH="${SSH_KEY_PATH:-}"
+SSH_OPTS="${SSH_OPTS:-"-o StrictHostKeyChecking=no -o ConnectTimeout=10"}"
+
+if [ -n "$SSH_KEY_PATH" ]; then
+  SSH_OPTS="-i $SSH_KEY_PATH $SSH_OPTS"
+fi
 
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -41,20 +46,10 @@ ssh_node1() {
 
 echo "==> Checking glusterd status on all nodes..."
 for ip in "$NODE1_IP" "$NODE2_IP" "$NODE3_IP"; do
-  # For node-2 and node-3 we route through node-1 as a jump host since they
-  # have no public IP.
-  if [ "$ip" = "$NODE1_IP" ]; then
-    ssh $SSH_OPTS "${ADMIN_USER}@${ip}" "sudo systemctl is-active glusterd" || {
-      echo "ERROR: glusterd not running on $ip. Check /var/log/node-setup.log"
-      exit 1
-    }
-  else
-    ssh $SSH_OPTS -J "${ADMIN_USER}@${NODE1_IP}" "${ADMIN_USER}@${ip}" \
-      "sudo systemctl is-active glusterd" || {
-      echo "ERROR: glusterd not running on $ip. Check /var/log/node-setup.log"
-      exit 1
-    }
-  fi
+  ssh $SSH_OPTS "${ADMIN_USER}@${ip}" "sudo systemctl is-active glusterd" || {
+    echo "ERROR: glusterd not running on $ip. Check /var/log/node-setup.log"
+    exit 1
+  }
 done
 echo "    glusterd is active on all nodes."
 
@@ -72,18 +67,10 @@ ssh_node1 "sudo gluster peer status"
 # ── 2. Verify brick paths exist on all nodes ──────────────────────────────────
 echo "==> Verifying brick paths..."
 for ip in "$NODE1_IP" "$NODE2_IP" "$NODE3_IP"; do
-  if [ "$ip" = "$NODE1_IP" ]; then
-    ssh $SSH_OPTS "${ADMIN_USER}@${ip}" "test -d $BRICK_PATH" || {
-      echo "ERROR: Brick path $BRICK_PATH does not exist on $ip"
-      exit 1
-    }
-  else
-    ssh $SSH_OPTS -J "${ADMIN_USER}@${NODE1_IP}" "${ADMIN_USER}@${ip}" \
-      "test -d $BRICK_PATH" || {
-      echo "ERROR: Brick path $BRICK_PATH does not exist on $ip"
-      exit 1
-    }
-  fi
+  ssh $SSH_OPTS "${ADMIN_USER}@${ip}" "test -d $BRICK_PATH" || {
+    echo "ERROR: Brick path $BRICK_PATH does not exist on $ip"
+    exit 1
+  }
 done
 echo "    Brick paths verified."
 
@@ -126,11 +113,7 @@ mount_on_node() {
     sudo mount -t glusterfs localhost:/$VOLUME_NAME $GLUSTER_MOUNT || true
     df -h $GLUSTER_MOUNT
   "
-  if [ "$node_ip" = "$NODE1_IP" ]; then
-    ssh $SSH_OPTS "${ADMIN_USER}@${node_ip}" "$mount_cmd"
-  else
-    ssh $SSH_OPTS -J "${ADMIN_USER}@${NODE1_IP}" "${ADMIN_USER}@${node_ip}" "$mount_cmd"
-  fi
+  ssh $SSH_OPTS "${ADMIN_USER}@${node_ip}" "$mount_cmd"
 }
 
 mount_on_node "$NODE1_IP"

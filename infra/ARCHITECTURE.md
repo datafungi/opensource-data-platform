@@ -2,7 +2,7 @@
 
 > **Scope:** Azure, GCP, and AWS. Cloud-specific pricing figures in this document reference **Azure Southeast Asia** unless stated otherwise. GCP and AWS equivalents are noted where they diverge meaningfully.
 >
-**Status:** Design phase — pre-implementation reference. All cost figures are estimates; verify against live pricing calculators before procurement.
+> **Status:** Docker Stack — implemented and deployed. Kubernetes Stack — planned. All cost figures are estimates; verify against live pricing calculators before procurement.
 ---
 > 
 
@@ -123,37 +123,50 @@ Migrate when **two or more** of the following are consistently true:
           └───────────────┴────────────────┘
                           │
                ┌──────────▼──────────┐
-               │  GlusterFS          │
-               │  Replica 3 Volume   │
-               │  /mnt/gluster/      │
-               │  ├── postgres-data/ │
-               │  ├── redis-data/    │
-               │  └── polaris-data/  │
-               └─────────────────────┘
+               │  GlusterFS            │
+               │  Replica 3 Volume     │
+               │  /mnt/gluster/        │
+               │  ├── postgres-data/   │
+               │  ├── redis-data/      │
+               │  ├── prometheus-data/ │
+               │  └── grafana-data/    │
+               └───────────────────────┘
 
-Azure VNet: 10.0.0.0/16
-  Subnet:   10.0.1.0/24 (all 3 nodes)
+Azure VNet: 10.54.0.0/16
+  Tailscale subnet: 10.54.0.0/24 (Tailscale VM at 10.54.0.4)
+  Nodes subnet:     10.54.1.0/24 (all 3 cluster nodes)
 ```
 
 ### 3.3 Service Topology
 
-| Service                 | Replicas | Placement                  | Port (internal) | GlusterFS volume |
-|-------------------------|----------|----------------------------|-----------------|------------------|
-| `airflow-apiserver`     | 2        | Any node                   | 8080            | —                |
-| `airflow-scheduler`     | 1        | Pinned: node-1             | —               | —                |
-| `airflow-dag-processor` | 1        | Pinned: node-1             | —               | —                |
-| `airflow-worker`        | 3        | Distributed (1 per node)   | —               | —                |
-| `airflow-triggerer`     | 1        | Pinned: node-1             | —               | —                |
-| `airflow-flower`        | 1        | Any node                   | 5555            | —                |
-| `postgres`              | 1        | Pinned: node-1 (floatable) | 5432            | `postgres-data/` |
-| `redis`                 | 1        | Pinned: node-2 (floatable) | 6379            | `redis-data/`    |
-| `polaris`               | 2        | Distributed                | 8181            | `polaris-data/`  |
-| `prometheus`            | 1        | Pinned: node-3             | 9090            | —                |
-| `grafana`               | 1        | Pinned: node-3             | 3000            | —                |
+| Service                 | Replicas              | Placement                    | Port (internal)    | GlusterFS volume   |
+|-------------------------|-----------------------|------------------------------|--------------------|--------------------|
+| `postgres`              | 1                     | node1 (`stateful=true`)      | 5432               | `postgres-data/`   |
+| `redis`                 | 1                     | node1 (`stateful=true`)      | 6379               | `redis-data/`      |
+| `airflow-scheduler`     | 1                     | node1                        | —                  | —                  |
+| `airflow-dag-processor` | 1                     | node1                        | —                  | —                  |
+| `airflow-triggerer`     | 1                     | node1                        | —                  | —                  |
+| `airflow-apiserver`     | 1                     | node2                        | 8080               | —                  |
+| `airflow-flower`        | 1                     | node2                        | 5555               | —                  |
+| `airflow-worker`        | global (node2, node3) | `nodename != node1`          | —                  | —                  |
+| `git-sync`              | global (all nodes)    | —                            | —                  | —                  |
+| `prometheus`            | 1                     | node3                        | 9090               | `prometheus-data/` |
+| `grafana`               | 1                     | node3                        | 3000               | `grafana-data/`    |
+| `statsd-exporter`       | 1                     | node3                        | 9102, 9125/udp     | —                  |
+| `postgres-exporter`     | 1                     | node3                        | 9187               | —                  |
+| `redis-exporter`        | 1                     | node3                        | 9121               | —                  |
+| `node-exporter`         | global (all nodes)    | host-mode port               | 9100               | —                  |
 
-**Floatable** means: if the pinned node fails, the service can be rescheduled on another node by updating the Swarm placement constraint. GlusterFS ensures data is available on the target node without any manual data migration.
+Placement constraints use Swarm node labels set by `deploy-databases.yml`:
+`stateful=true` on node1 (for floatable stateful services), `nodename=node1/2/3`
+on all nodes (for pinned single-replica services).
 
-**Publicly exposed via NSG:** `airflow-apiserver:8080`, `grafana:3000`.
+**Floatable** means: if node1 fails, Postgres and Redis can be rescheduled on
+another node by updating the `stateful=true` label. GlusterFS ensures data is
+available on the target node without manual migration.
+
+**Publicly exposed** (via Tailscale subnet `10.54.0.0/24`): `airflow-apiserver:8080`,
+`grafana:3000`. Ports are reachable on any node IP via the Swarm routing mesh.
 All other services are accessible only within the Swarm overlay network.
 
 ### 3.4 Networking & Security
@@ -161,24 +174,30 @@ All other services are accessible only within the Swarm overlay network.
 **Network topology:**
 
 ```
-Azure VNet (10.0.0.0/16)
-└── data-platform-subnet (10.0.1.0/24)
-    ├── node-1: 10.0.1.10
-    ├── node-2: 10.0.1.11
-    └── node-3: 10.0.1.12
+Azure VNet (10.54.0.0/16)
+├── tailscale-subnet (10.54.0.0/24)
+│   └── Tailscale VM: 10.54.0.4  — subnet router, VPN exit node
+└── nodes-subnet (10.54.1.0/24)
+    ├── node-1: 10.54.1.10  (public IP on node-1 only)
+    ├── node-2: 10.54.1.11
+    └── node-3: 10.54.1.12
 
-NSG rules (inbound):
-  Allow  TCP 8080   0.0.0.0/0   → Airflow UI
-  Allow  TCP 3000   0.0.0.0/0   → Grafana
-  Allow  TCP 22     <bastion>   → SSH (management only)
-  Allow  TCP 2377   10.0.1.0/24 → Swarm manager communication
-  Allow  TCP 7946   10.0.1.0/24 → Swarm node discovery
-  Allow  UDP 7946   10.0.1.0/24 → Swarm node discovery
-  Allow  UDP 4789   10.0.1.0/24 → Swarm overlay (VXLAN)
-  Allow  TCP 24007  10.0.1.0/24 → GlusterFS management
-  Allow  TCP 49152+ 10.0.1.0/24 → GlusterFS bricks
-  Deny   All        0.0.0.0/0
+NSG rules (inbound to nodes-subnet):
+  Allow  TCP 8080   10.54.0.0/24 → Airflow UI (Tailscale only)
+  Allow  TCP 3000   10.54.0.0/24 → Grafana (Tailscale only)
+  Allow  TCP 22     10.54.0.0/24 → SSH via tailnet
+  Allow  TCP 2377   10.54.1.0/24 → Swarm manager communication
+  Allow  TCP 7946   10.54.1.0/24 → Swarm node discovery
+  Allow  UDP 7946   10.54.1.0/24 → Swarm node discovery
+  Allow  UDP 4789   10.54.1.0/24 → Swarm overlay (VXLAN)
+  Allow  TCP 24007  10.54.1.0/24 → GlusterFS management
+  Allow  TCP 49152+ 10.54.1.0/24 → GlusterFS bricks
+  Deny   All        *
 ```
+
+UI port sources are conditional on `enable_tailscale`: `10.54.0.0/24` when
+Tailscale is enabled (services unreachable from public internet), `Internet`
+when disabled (direct access, less secure).
 
 **Secrets management:** Azure Key Vault stores all credentials (database passwords, Airflow fernet key, Polaris secrets). A VM managed identity grants read access to Key Vault. Secrets are injected at VM startup via cloud-init and passed to Docker Swarm as `docker secret` objects — never stored in plain-text files or environment variables.
 
@@ -227,17 +246,14 @@ These settings disable GlusterFS caching layers to preserve PostgreSQL's `fsync(
 **Metrics pipeline:**
 
 ```
-Airflow (StatsD) → statsd-exporter → Prometheus
-PostgreSQL       → postgres-exporter → Prometheus
-Redis            → redis-exporter → Prometheus
-GlusterFS        → gluster-exporter → Prometheus
-Node metrics     → node-exporter (on each VM) → Prometheus
-                                                     │
-                                                  Grafana
-                                                  (dashboards)
-                                                     │
-                                               Alertmanager
-                                               (email/Slack)
+Airflow (StatsD)  → statsd-exporter   → Prometheus (node3:9090)
+PostgreSQL        → postgres-exporter → Prometheus
+Redis             → redis-exporter    → Prometheus
+Node metrics      → node-exporter     → Prometheus
+  (global service, host-mode port 9100; scraped by private IP per node)
+                                                │
+                                            Grafana (node3:3000)
+                                            (dashboards)
 ```
 
 **Key dashboards:**
