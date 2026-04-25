@@ -37,7 +37,7 @@ COMPOSE = docker compose --project-directory . $(foreach f,$(SELECTED_FILES),-f 
 .PHONY: build up down clean
 
 build:
-	docker build -t $(AIRFLOW_IMAGE) infra/docker/images/airflow
+	docker build -t $(AIRFLOW_IMAGE) -f infra/images/airflow.Dockerfile .
 
 up:
 	docker network create data-platform 2>/dev/null || true

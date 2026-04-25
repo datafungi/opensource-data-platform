@@ -99,6 +99,12 @@
         data: "{{ lookup('file', playbook_dir + '/../../../compose/prometheus/prometheus.yml') }}"
         state: present
 
+    - name: Create statsd_mapping Docker config
+      community.docker.docker_config:
+        name: statsd_mapping
+        data: "{{ lookup('file', playbook_dir + '/../../../compose/statsd/statsd_mapping.yml') }}"
+        state: present
+
     # Prometheus runs as UID 65534 (nobody); Grafana runs as UID 472.
     # GlusterFS replicates these directories to all nodes — creating them on
     # node-1 is enough. Without this, Docker raises "invalid mount config for

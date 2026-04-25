@@ -87,6 +87,20 @@ resource "azurerm_network_security_rule" "allow_portainer" {
   network_security_group_name = azurerm_network_security_group.nodes.name
 }
 
+resource "azurerm_network_security_rule" "allow_prometheus" {
+  name                        = "Allow-Prometheus"
+  priority                    = 117
+  direction                   = "Inbound"
+  access                      = "Allow"
+  protocol                    = "Tcp"
+  source_port_range           = "*"
+  destination_port_range      = "9090"
+  source_address_prefix       = var.enable_tailscale ? "10.54.0.0/24" : "Internet"
+  destination_address_prefix  = "*"
+  resource_group_name         = var.resource_group_name
+  network_security_group_name = azurerm_network_security_group.nodes.name
+}
+
 # Conditional SSH rule — only created when a specific source CIDR is provided.
 # Leave allowed_ssh_cidr empty when using Azure Bastion or Tailscale.
 resource "azurerm_network_security_rule" "allow_ssh" {
@@ -174,6 +188,20 @@ resource "azurerm_network_security_rule" "swarm_overlay" {
   protocol                    = "Udp"
   source_port_range           = "*"
   destination_port_range      = "4789"
+  source_address_prefix       = "10.54.1.0/24"
+  destination_address_prefix  = "*"
+  resource_group_name         = var.resource_group_name
+  network_security_group_name = azurerm_network_security_group.nodes.name
+}
+
+resource "azurerm_network_security_rule" "allow_node_exporter" {
+  name                        = "Allow-NodeExporter"
+  priority                    = 260
+  direction                   = "Inbound"
+  access                      = "Allow"
+  protocol                    = "Tcp"
+  source_port_range           = "*"
+  destination_port_range      = "9100"
   source_address_prefix       = "10.54.1.0/24"
   destination_address_prefix  = "*"
   resource_group_name         = var.resource_group_name

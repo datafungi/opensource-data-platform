@@ -1,0 +1,88 @@
+mappings:
+  # ── Task instances ──────────────────────────────────────────────────────────
+  - match: "airflow.ti.start.*.*"
+    name: "airflow_ti_start"
+    labels:
+      dag_id: "$1"
+      task_id: "$2"
+
+  - match: "airflow.ti.finish.*.*.*"
+    name: "airflow_ti_finish"
+    labels:
+      dag_id: "$1"
+      task_id: "$2"
+      state: "$3"
+
+  # ── DAG runs ────────────────────────────────────────────────────────────────
+  - match: "airflow.dagrun.duration.success.*"
+    name: "airflow_dagrun_duration_success_seconds"
+    timer_type: histogram
+    labels:
+      dag_id: "$1"
+
+  - match: "airflow.dagrun.duration.failed.*"
+    name: "airflow_dagrun_duration_failed_seconds"
+    timer_type: histogram
+    labels:
+      dag_id: "$1"
+
+  - match: "airflow.dagrun.schedule_delay.*"
+    name: "airflow_dagrun_schedule_delay_seconds"
+    timer_type: histogram
+    labels:
+      dag_id: "$1"
+
+  - match: "airflow.dagrun.dependency-check.*"
+    name: "airflow_dagrun_dependency_check_seconds"
+    timer_type: histogram
+    labels:
+      dag_id: "$1"
+
+  # ── DAG loading ─────────────────────────────────────────────────────────────
+  - match: "airflow.dag.loading-duration.*"
+    name: "airflow_dag_loading_duration_seconds"
+    timer_type: histogram
+    labels:
+      dag_file: "$1"
+
+  - match: "airflow.dag_processing.last_runtime.*"
+    name: "airflow_dag_processing_last_runtime_seconds"
+    labels:
+      dag_file: "$1"
+
+  # ── Executor / pool ─────────────────────────────────────────────────────────
+  - match: "airflow.pool.open_slots.*"
+    name: "airflow_pool_open_slots"
+    labels:
+      pool_name: "$1"
+
+  - match: "airflow.pool.used_slots.*"
+    name: "airflow_pool_used_slots"
+    labels:
+      pool_name: "$1"
+
+  - match: "airflow.pool.queued_slots.*"
+    name: "airflow_pool_queued_slots"
+    labels:
+      pool_name: "$1"
+
+  - match: "airflow.pool.starving_tasks.*"
+    name: "airflow_pool_starving_tasks"
+    labels:
+      pool_name: "$1"
+
+  # ── Operators ───────────────────────────────────────────────────────────────
+  - match: "airflow.operator_failures.*"
+    name: "airflow_operator_failures"
+    labels:
+      operator_name: "$1"
+
+  - match: "airflow.operator_successes.*"
+    name: "airflow_operator_successes"
+    labels:
+      operator_name: "$1"
+
+  - match: "airflow.task_instance_created.*"
+    name: "airflow_task_instance_created"
+    labels:
+      operator_name: "$1"
