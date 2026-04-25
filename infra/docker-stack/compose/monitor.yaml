@@ -94,6 +94,11 @@ services:
 
   statsd-exporter:
     image: prom/statsd-exporter:latest
+    command:
+      - "--statsd.mapping-config=/etc/statsd/mapping.yml"
+    configs:
+      - source: statsd_mapping
+        target: /etc/statsd/mapping.yml
     ports:
       - "9102:9102"
       - "9125:9125/udp"
@@ -237,6 +242,8 @@ networks:
 
 configs:
   prometheus_config:
+    external: true
+  statsd_mapping:
     external: true
 
 secrets:

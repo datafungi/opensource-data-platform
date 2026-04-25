@@ -38,10 +38,12 @@ managed identity; no secrets are stored in cloud-init or VM user data.
 | Allow-Airflow-UI           | 8080 TCP        | 10.54.0.0/24 | UI access via Tailscale only |
 | Allow-Grafana              | 3000 TCP        | 10.54.0.0/24 | UI access via Tailscale only |
 | Allow-Portainer            | 9443 TCP        | 10.54.0.0/24 | UI access via Tailscale only |
+| Allow-Prometheus           | 9090 TCP        | 10.54.0.0/24 | UI access via Tailscale only |
 | Allow-SSH-Tailscale        | 22 TCP          | 10.54.0.0/24 | SSH via tailnet              |
 | Allow-Swarm-Manager-TCP    | 2377 TCP        | 10.54.1.0/24 | Swarm cluster management     |
 | Allow-Swarm-Discovery      | 7946 TCP+UDP    | 10.54.1.0/24 | Swarm gossip                 |
 | Allow-Swarm-Overlay        | 4789 UDP        | 10.54.1.0/24 | VXLAN overlay network        |
+| Allow-NodeExporter         | 9100 TCP        | 10.54.1.0/24 | Prometheus node scraping     |
 | Allow-GlusterFS-Management | 24007–24008 TCP | 10.54.1.0/24 | GlusterFS management         |
 | Allow-GlusterFS-Bricks     | 49152–65535 TCP | 10.54.1.0/24 | GlusterFS brick replication  |
 | Deny-All-Inbound           | *               | *            | Default deny                 |

@@ -3,9 +3,8 @@ name = "opensource-data-platform"
 version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
-requires-python = ">=3.12"
+requires-python = ">=3.12,<3.13"
 dependencies = [
-    "apache-airflow==3.2.0",
     "apache-airflow-providers-celery>=3.17.1",
     "apache-airflow-providers-fab>=3.5.0",
     "apache-airflow-providers-microsoft-azure>=13.0.1",
@@ -16,10 +15,12 @@ dependencies = [
     "duckdb-engine>=0.17.0",
     "polars>=1.39.3",
     "psycopg2-binary>=2.9.11",
+    "statsd>=4.0.1",
 ]
 
 [dependency-groups]
 dev = [
+    "apache-airflow==3.2.0",
     "faker>=37.0.0",
     "httpx>=0.28.0",
     "pytest>=9.0.2",
