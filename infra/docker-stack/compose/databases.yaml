@@ -45,7 +45,8 @@ services:
       restart_policy:
         condition: on-failure
         delay: 10s
-        max_attempts: 3
+        max_attempts: 5
+        window: 120s
 
   redis:
     image: redis:7.2-bookworm
@@ -83,7 +84,8 @@ services:
       restart_policy:
         condition: on-failure
         delay: 10s
-        max_attempts: 3
+        max_attempts: 5
+        window: 120s
 
 networks:
   data-platform:

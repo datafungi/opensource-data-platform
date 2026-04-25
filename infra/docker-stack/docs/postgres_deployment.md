@@ -72,6 +72,15 @@ The playbook performs two plays:
    nodes.
 6. Copies `compose/databases.yaml` to `/opt/stacks/databases.yaml` on node-1.
 7. Runs `docker stack deploy`.
+8. Polls `pg_isready` via a one-shot container on the overlay network until
+   Postgres accepts connections (up to 5 minutes, 30 retries × 10 s).
+9. Polls `redis-cli ping` the same way until Redis responds.
+10. If any Airflow services are running in the stack, force-updates each one
+    (`docker service update --force`) so stale connections are replaced cleanly.
+
+Steps 8–10 make `deploy-databases.yml` safe to re-run against a live cluster:
+Airflow services reconnect automatically after a database redeploy without
+manual intervention.
 
 ---
 

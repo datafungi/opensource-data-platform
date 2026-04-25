@@ -43,7 +43,7 @@ managed identity; no secrets are stored in cloud-init or VM user data.
 | Allow-Swarm-Discovery      | 7946 TCP+UDP    | 10.54.1.0/24 | Swarm gossip                 |
 | Allow-Swarm-Overlay        | 4789 UDP        | 10.54.1.0/24 | VXLAN overlay network        |
 | Allow-GlusterFS-Management | 24007–24008 TCP | 10.54.1.0/24 | GlusterFS management         |
-| Allow-GlusterFS-Bricks     | 49152–49200 TCP | 10.54.1.0/24 | GlusterFS brick replication  |
+| Allow-GlusterFS-Bricks     | 49152–65535 TCP | 10.54.1.0/24 | GlusterFS brick replication  |
 | Deny-All-Inbound           | *               | *            | Default deny                 |
 
 The UI ports (8080, 3000, 9443) source is conditional in Terraform: `10.54.0.0/24` when

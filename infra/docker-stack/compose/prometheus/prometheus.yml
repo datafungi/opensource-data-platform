@@ -23,7 +23,17 @@ scrape_configs:
       - targets:
           - "redis-exporter:9121"
 
+  # node-exporter runs as a global service (one task per Swarm node). Overlay
+  # DNS resolves to the VIP and would only reach one task at a time. Instead,
+  # each node is scraped directly by private IP on the host-published port.
   - job_name: node
     static_configs:
-      - targets:
-          - "node-exporter:9100"
+      - targets: ["10.54.1.10:9100"]
+        labels:
+          node: node-1
+      - targets: ["10.54.1.11:9100"]
+        labels:
+          node: node-2
+      - targets: ["10.54.1.12:9100"]
+        labels:
+          node: node-3
