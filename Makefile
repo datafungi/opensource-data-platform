@@ -1,17 +1,18 @@
-POSTGRES_COMPOSE    := infra/docker/local/postgres/docker-compose.yaml
-AIRFLOW_COMPOSE     := infra/docker/local/airflow/docker-compose.yaml
-MARQUEZ_COMPOSE     := infra/docker/local/marquez/docker-compose.yaml
-MINIO_COMPOSE       := infra/docker/local/minio/docker-compose.yaml
-CLICKHOUSE_COMPOSE  := infra/docker/local/clickhouse/single-node/docker-compose.yaml
-AIRFLOW_IMAGE       := localairflow:latest
+AIRFLOW_COMPOSE    := infra/dev/compose/airflow.lite.yaml
+MSSQL_COMPOSE      := infra/dev/compose/mssql.yaml
+CLICKHOUSE_COMPOSE := infra/dev/compose/clickhouse.yaml
+RUSTFS_COMPOSE     := infra/dev/compose/rustfs.yaml
+SEAWEEDFS_COMPOSE  := infra/dev/compose/seaweedfs.yaml
 
-# Compose files per component (dependencies included)
-COMPOSE_FILES_postgres         := $(POSTGRES_COMPOSE)
-COMPOSE_FILES_airflow          := $(POSTGRES_COMPOSE) $(AIRFLOW_COMPOSE)
-COMPOSE_FILES_marquez          := $(POSTGRES_COMPOSE) $(MARQUEZ_COMPOSE)
-COMPOSE_FILES_minio            := $(MINIO_COMPOSE)
-COMPOSE_FILES_clickhouse       := $(CLICKHOUSE_COMPOSE)
-ALL_COMPOSE_FILES              := $(POSTGRES_COMPOSE) $(AIRFLOW_COMPOSE) $(MARQUEZ_COMPOSE) $(MINIO_COMPOSE) $(CLICKHOUSE_COMPOSE)
+AIRFLOW_IMAGE      := localairflow:latest
+DEV_NETWORK        := data-platform-dev
+
+COMPOSE_FILES_airflow    := $(AIRFLOW_COMPOSE)
+COMPOSE_FILES_mssql      := $(MSSQL_COMPOSE)
+COMPOSE_FILES_clickhouse := $(CLICKHOUSE_COMPOSE)
+COMPOSE_FILES_rustfs     := $(RUSTFS_COMPOSE)
+COMPOSE_FILES_seaweedfs  := $(SEAWEEDFS_COMPOSE)
+ALL_COMPOSE_FILES        := $(AIRFLOW_COMPOSE) $(MSSQL_COMPOSE) $(CLICKHOUSE_COMPOSE) $(RUSTFS_COMPOSE) $(SEAWEEDFS_COMPOSE)
 
 # Support both `make up component=foo` (variable override) and `make up foo` (goal-based)
 ifdef component
@@ -24,12 +25,12 @@ else
 endif
 
 ifneq ($(COMPONENT),)
-  SELECTED_FILES := $(COMPOSE_FILES_$(COMPONENT))
+  SELECTED_FILES := $(foreach c,$(COMPONENT),$(COMPOSE_FILES_$(c)))
   # Don't remove orphans for single-component deploys — other components are not orphans.
   ORPHAN_FLAG :=
 else
   SELECTED_FILES := $(ALL_COMPOSE_FILES)
-  ORPHAN_FLAG := --remove-orphans
+  ORPHAN_FLAG    := --remove-orphans
 endif
 
 COMPOSE = docker compose --project-directory . $(foreach f,$(SELECTED_FILES),-f $(f))
@@ -40,7 +41,7 @@ build:
 	docker build -t $(AIRFLOW_IMAGE) -f infra/images/airflow.Dockerfile .
 
 up:
-	docker network create data-platform 2>/dev/null || true
+	docker network create $(DEV_NETWORK) 2>/dev/null || true
 	$(COMPOSE) up -d --build $(ORPHAN_FLAG)
 
 down:
