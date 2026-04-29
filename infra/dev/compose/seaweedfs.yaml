@@ -1,0 +1,38 @@
+services:
+  seaweedfs:
+    image: chrislusf/seaweedfs:latest
+    # Single-node mode: master + volume + filer + S3 gateway in one process.
+    # Credentials are written to a config file at startup from env vars so
+    # they can be sourced from .env without needing a separately mounted file.
+    entrypoint: /bin/sh
+    command:
+      - -c
+      - |
+        mkdir -p /etc/seaweedfs
+        printf '{"identities":[{"name":"admin","credentials":[{"accessKey":"%s","secretKey":"%s"}],"actions":["Admin","Read","List","Tagging","Write"]}]}\n' \
+          "${SEAWEEDFS_ACCESS_KEY:-seaweedadmin}" \
+          "${SEAWEEDFS_SECRET_KEY:-seaweedadmin}" \
+          > /etc/seaweedfs/s3.json
+        exec weed server -filer -s3 -s3.config=/etc/seaweedfs/s3.json -ip.bind=0.0.0.0
+    ports:
+      - "8333:8333"   # S3 API
+      - "9333:9333"   # master (cluster status / metrics)
+      - "8888:8888"   # filer UI
+    volumes:
+      - seaweedfs-data:/data
+    networks:
+      - data-platform-dev
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:9333/cluster/status"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    restart: unless-stopped
+
+volumes:
+  seaweedfs-data:
+
+networks:
+  data-platform-dev:
+    external: true
