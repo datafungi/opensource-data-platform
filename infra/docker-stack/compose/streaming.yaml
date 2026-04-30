@@ -1,0 +1,101 @@
+version: "3.9"
+
+# Stream processing stack — Kafka (KRaft) + Apache Flink
+# Deploy: docker stack deploy -c infra/docker-stack/compose/streaming.yaml data-platform
+
+x-flink-common: &flink-common
+  image: apache/flink:2.2.0-scala_2.12-java21
+  networks:
+    - data-platform
+  logging:
+    driver: json-file
+    options:
+      max-size: "50m"
+      max-file: "3"
+
+services:
+  kafka:
+    image: bitnami/kafka:4.0
+    environment:
+      KAFKA_CFG_NODE_ID: "1"
+      KAFKA_CFG_PROCESS_ROLES: broker,controller
+      KAFKA_CFG_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_CFG_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093
+      KAFKA_CFG_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT
+      KAFKA_CFG_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_CFG_AUTO_CREATE_TOPICS_ENABLE: "true"
+      KAFKA_CFG_LOG_RETENTION_HOURS: "168"
+      KAFKA_CFG_LOG_SEGMENT_BYTES: "1073741824"
+      ALLOW_PLAINTEXT_LISTENER: "yes"
+    volumes:
+      - kafka-data:/bitnami/kafka
+    networks:
+      - data-platform
+    deploy:
+      replicas: 1
+      placement:
+        constraints:
+          - node.labels.stateful == true
+      resources:
+        limits:
+          memory: 2G
+      restart_policy:
+        condition: on-failure
+        delay: 10s
+    logging:
+      driver: json-file
+      options:
+        max-size: "50m"
+        max-file: "3"
+
+  flink-jobmanager:
+    <<: *flink-common
+    command: jobmanager
+    environment:
+      FLINK_PROPERTIES: |
+        jobmanager.rpc.address: flink-jobmanager
+        rest.bind-address: 0.0.0.0
+        metrics.reporter.promgateway.class: org.apache.flink.metrics.prometheus.PrometheusPushGatewayReporter
+        metrics.reporter.promgateway.host: pushgateway
+        metrics.reporter.promgateway.port: 9091
+    deploy:
+      replicas: 1
+      placement:
+        constraints:
+          - node.labels.analytics == true
+      resources:
+        limits:
+          memory: 2G
+      restart_policy:
+        condition: on-failure
+        delay: 10s
+
+  flink-taskmanager:
+    <<: *flink-common
+    command: taskmanager
+    environment:
+      FLINK_PROPERTIES: |
+        jobmanager.rpc.address: flink-jobmanager
+        taskmanager.numberOfTaskSlots: 4
+        taskmanager.memory.process.size: 2g
+    deploy:
+      replicas: 2
+      resources:
+        limits:
+          memory: 2G
+      restart_policy:
+        condition: on-failure
+        delay: 10s
+
+volumes:
+  kafka-data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /mnt/gluster/kafka-data
+
+networks:
+  data-platform:
+    external: true

@@ -1,0 +1,17 @@
+[project]
+name = "airflow-provider-odcs"
+version = "0.1.0"
+description = "Apache Airflow provider for Open Data Contract Standard (ODCS) validation"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "apache-airflow>=3.0.0",
+    "pyyaml>=6.0",
+]
+
+[project.entry-points."apache_airflow_provider"]
+provider_info = "airflow_provider_odcs:get_provider_info"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"

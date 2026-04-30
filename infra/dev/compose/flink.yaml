@@ -1,0 +1,36 @@
+services:
+  flink-jobmanager:
+    image: apache/flink:2.2.0-scala_2.12-java21
+    command: jobmanager
+    environment:
+      FLINK_PROPERTIES: |
+        jobmanager.rpc.address: flink-jobmanager
+        rest.bind-address: 0.0.0.0
+    ports:
+      - "8082:8081"
+    networks:
+      - data-platform-dev
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8081/overview"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+
+  flink-taskmanager:
+    image: apache/flink:2.2.0-scala_2.12-java21
+    command: taskmanager
+    environment:
+      FLINK_PROPERTIES: |
+        jobmanager.rpc.address: flink-jobmanager
+        taskmanager.numberOfTaskSlots: 2
+        taskmanager.memory.process.size: 1g
+    depends_on:
+      flink-jobmanager:
+        condition: service_healthy
+    networks:
+      - data-platform-dev
+
+networks:
+  data-platform-dev:
+    external: true

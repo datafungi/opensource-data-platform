@@ -1,0 +1,76 @@
+repositories:
+  - name: apache-airflow
+    url: https://airflow.apache.org
+  - name: hashicorp
+    url: https://helm.releases.hashicorp.com
+  - name: seaweedfs
+    url: https://seaweedfs.github.io/seaweedfs/helm
+  - name: trino
+    url: https://trinodb.github.io/charts
+  - name: bitnami
+    url: https://charts.bitnami.com/bitnami
+  - name: prometheus-community
+    url: https://prometheus-community.github.io/helm-charts
+
+releases:
+  - name: vault
+    namespace: data-platform
+    chart: hashicorp/vault
+    version: "0.28.0"
+    values:
+      - helm/base/vault-values.yaml
+
+  - name: seaweedfs
+    namespace: data-platform
+    chart: seaweedfs/seaweedfs
+    version: "3.78.0"
+    values:
+      - helm/base/seaweedfs-values.yaml
+
+  - name: postgresql
+    namespace: data-platform
+    chart: bitnami/postgresql
+    version: "15.5.0"
+    values:
+      - helm/base/postgres-values.yaml
+
+  - name: redis
+    namespace: data-platform
+    chart: bitnami/redis
+    version: "19.6.0"
+    values:
+      - helm/base/redis-values.yaml
+
+  - name: clickhouse
+    namespace: data-platform
+    chart: bitnami/clickhouse
+    version: "6.4.0"
+    values:
+      - helm/base/clickhouse-values.yaml
+
+  - name: airflow
+    namespace: data-platform
+    chart: apache-airflow/airflow
+    version: "1.15.0"
+    values:
+      - helm/base/airflow-values.yaml
+    needs:
+      - data-platform/vault
+      - data-platform/postgresql
+      - data-platform/redis
+
+  - name: trino
+    namespace: data-platform
+    chart: trino/trino
+    version: "0.33.0"
+    values:
+      - helm/base/trino-values.yaml
+    needs:
+      - data-platform/clickhouse
+
+  - name: kube-prometheus-stack
+    namespace: monitoring
+    chart: prometheus-community/kube-prometheus-stack
+    version: "61.0.0"
+    values:
+      - helm/base/kube-prometheus-stack-values.yaml

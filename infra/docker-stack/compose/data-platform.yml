@@ -61,7 +61,7 @@ services:
   # GlusterFS provides data persistence across node failures.
   # ---------------------------------------------------------------------------
   postgres:
-    image: postgres:16
+    image: postgres:17
     environment:
       POSTGRES_USER: airflow
       POSTGRES_PASSWORD_FILE: /run/secrets/postgres_airflow_password
@@ -114,7 +114,7 @@ services:
   # acceptable for internal cluster traffic.
   # ---------------------------------------------------------------------------
   redis:
-    image: redis:7.2-bookworm
+    image: redis:8-bookworm
     # Read password from Docker secret at start; avoids storing it in env vars.
     command: >
       sh -c 'redis-server --requirepass "$$(cat /run/secrets/redis_password)" --appendonly yes'

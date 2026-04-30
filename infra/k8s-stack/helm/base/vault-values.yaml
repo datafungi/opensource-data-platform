@@ -1,0 +1,46 @@
+server:
+  # Production mode — file storage, manually unsealed.
+  # See infra/docker-stack/docs/vault_setup.md for the unseal procedure.
+  dev:
+    enabled: false
+
+  # Single replica — no Raft HA (matches Docker Swarm stack approach).
+  # For HA, enable Raft and set ha.replicas: 3.
+  ha:
+    enabled: false
+
+  # File storage on a persistent volume
+  dataStorage:
+    enabled: true
+    size: 10Gi
+    # storageClass: ""   # Uses cluster default; set explicitly for bare-metal clusters
+
+  config: |
+    storage "file" {
+      path = "/vault/data"
+    }
+    listener "tcp" {
+      address = "0.0.0.0:8200"
+      tls_disable = true
+    }
+    ui = true
+    telemetry {
+      prometheus_retention_time = "30s"
+      disable_hostname = true
+    }
+
+  resources:
+    limits:
+      cpu: 250m
+      memory: 256Mi
+    requests:
+      cpu: 100m
+      memory: 128Mi
+
+# Vault Agent Injector disabled — Airflow authenticates directly via token
+injector:
+  enabled: false
+
+ui:
+  enabled: true
+  serviceType: ClusterIP

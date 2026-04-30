@@ -1,0 +1,133 @@
+services:
+  # SeaweedFS master — cluster coordinator; pinned to node1 alongside other stateful services.
+  seaweedfs-master:
+    image: chrislusf/seaweedfs:4.21
+    command: master -mdir=/data/master -ip=seaweedfs-master -ip.bind=0.0.0.0
+    volumes:
+      - type: bind
+        source: /mnt/gluster/seaweedfs-master
+        target: /data/master
+    networks:
+      - data-platform
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:9333/cluster/status"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    deploy:
+      replicas: 1
+      placement:
+        constraints:
+          - node.labels.stateful == true
+          - node.labels.nodename == node1
+      resources:
+        limits:
+          cpus: "0.25"
+          memory: 256M
+        reservations:
+          cpus: "0.10"
+          memory: 128M
+      restart_policy:
+        condition: on-failure
+        delay: 10s
+        max_attempts: 5
+        window: 300s
+
+  # SeaweedFS volume server — one instance per node (global mode).
+  seaweedfs-volume:
+    image: chrislusf/seaweedfs:4.21
+    command: >
+      volume
+      -mserver=seaweedfs-master:9333
+      -dir=/data/volume
+      -ip.bind=0.0.0.0
+      -dataCenter=dc1
+    volumes:
+      - type: bind
+        source: /mnt/gluster/seaweedfs-volume
+        target: /data/volume
+    networks:
+      - data-platform
+    deploy:
+      mode: global
+      resources:
+        limits:
+          cpus: "0.50"
+          memory: 512M
+        reservations:
+          cpus: "0.25"
+          memory: 256M
+      restart_policy:
+        condition: on-failure
+        delay: 10s
+        max_attempts: 5
+        window: 300s
+
+  # SeaweedFS filer + S3 gateway — single replica on node1.
+  # S3 API port 8333 is accessible only within the overlay network.
+  # Filer UI port 8888 is accessible via Tailscale (add to firewall allow-list).
+  seaweedfs-filer:
+    image: chrislusf/seaweedfs:4.21
+    entrypoint: /bin/sh
+    command:
+      - -c
+      - |
+        mkdir -p /etc/seaweedfs
+        printf '{"identities":[{"name":"admin","credentials":[{"accessKey":"%s","secretKey":"%s"}],"actions":["Admin","Read","List","Tagging","Write"]}]}\n' \
+          "$$(cat /run/secrets/seaweedfs_access_key)" \
+          "$$(cat /run/secrets/seaweedfs_secret_key)" \
+          > /etc/seaweedfs/s3.json
+        exec weed filer \
+          -master=seaweedfs-master:9333 \
+          -ip.bind=0.0.0.0 \
+          -s3 \
+          -s3.config=/etc/seaweedfs/s3.json
+    ports:
+      - target: 8333
+        published: 8333
+        protocol: tcp
+        mode: ingress   # internal only — no public exposure
+      - target: 8888
+        published: 8888
+        protocol: tcp
+        mode: host
+    networks:
+      - data-platform
+    secrets:
+      - seaweedfs_access_key
+      - seaweedfs_secret_key
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8888/"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    deploy:
+      replicas: 1
+      placement:
+        constraints:
+          - node.labels.stateful == true
+          - node.labels.nodename == node1
+      resources:
+        limits:
+          cpus: "0.50"
+          memory: 512M
+        reservations:
+          cpus: "0.25"
+          memory: 256M
+      restart_policy:
+        condition: on-failure
+        delay: 10s
+        max_attempts: 5
+        window: 300s
+
+networks:
+  data-platform:
+    external: true
+
+secrets:
+  seaweedfs_access_key:
+    external: true
+  seaweedfs_secret_key:
+    external: true

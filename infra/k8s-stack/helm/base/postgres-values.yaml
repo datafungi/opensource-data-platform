@@ -1,0 +1,22 @@
+auth:
+  username: airflow
+  database: airflow
+  existingSecret: postgres-airflow-secret
+  secretKeys:
+    userPasswordKey: password
+
+primary:
+  persistence:
+    enabled: true
+    size: 20Gi
+  resources:
+    limits:
+      cpu: "1"
+      memory: 1Gi
+    requests:
+      cpu: "500m"
+      memory: 512Mi
+
+# No replicas for portfolio scale — add a standby for production HA
+readReplicas:
+  replicaCount: 0

@@ -1,0 +1,20 @@
+data_platform:
+  target: dev
+  outputs:
+    dev:
+      type: clickhouse
+      host: "{{ env_var('DBT_CLICKHOUSE_HOST', 'clickhouse') }}"
+      port: 8123
+      user: "{{ env_var('DBT_CLICKHOUSE_USER', 'default') }}"
+      password: "{{ env_var('DBT_CLICKHOUSE_PASSWORD', '') }}"
+      schema: default
+      secure: false
+
+    prod:
+      type: clickhouse
+      host: "{{ env_var('DBT_CLICKHOUSE_HOST', 'clickhouse') }}"
+      port: 8123
+      user: "{{ env_var('DBT_CLICKHOUSE_USER') }}"
+      password: "{{ env_var('DBT_CLICKHOUSE_PASSWORD') }}"
+      schema: default
+      secure: false

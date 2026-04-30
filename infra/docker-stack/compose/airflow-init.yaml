@@ -6,8 +6,8 @@ services:
     environment:
       AIRFLOW__CORE__AUTH_MANAGER: airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager
       AIRFLOW__CORE__EXECUTOR: CeleryExecutor
-      AIRFLOW__SECRETS__BACKEND: airflow.providers.microsoft.azure.secrets.key_vault.AzureKeyVaultBackend
-      AIRFLOW__SECRETS__BACKEND_KWARGS: '{"vault_url": "https://${KEYVAULT_NAME}.vault.azure.net/", "connections_prefix": "airflow-connections", "variables_prefix": "airflow-variables", "config_prefix": "airflow-config"}'
+      AIRFLOW__SECRETS__BACKEND: airflow.providers.hashicorp.secrets.vault.VaultBackend
+      AIRFLOW__SECRETS__BACKEND_KWARGS: '{"connections_path": "airflow/connections", "variables_path": "airflow/variables", "config_path": "airflow/config", "url": "http://vault:8200", "auth_type": "token"}'
       AIRFLOW__CORE__FERNET_KEY_SECRET: fernet-key
       AIRFLOW__DATABASE__SQL_ALCHEMY_CONN_SECRET: sql-alchemy-conn
       _AIRFLOW_DB_MIGRATE: "true"
@@ -25,7 +25,7 @@ services:
     networks:
     - data-platform
     secrets:
-    - azure_mi_client_id
+    - vault_airflow_token
     deploy:
       replicas: 1
       restart_policy:
@@ -47,5 +47,5 @@ configs:
     external: true
 
 secrets:
-  azure_mi_client_id:
+  vault_airflow_token:
     external: true

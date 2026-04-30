@@ -1,0 +1,66 @@
+grafana:
+  enabled: true
+  adminPassword: ""   # Set via --set or a K8s Secret
+  persistence:
+    enabled: true
+    size: 5Gi
+
+prometheus:
+  prometheusSpec:
+    retention: 15d
+    storageSpec:
+      volumeClaimTemplate:
+        spec:
+          accessModes: [ReadWriteOnce]
+          resources:
+            requests:
+              storage: 20Gi
+
+    additionalScrapeConfigs:
+      # Vault native Prometheus endpoint
+      - job_name: vault
+        metrics_path: /v1/sys/metrics
+        params:
+          format: [prometheus]
+        static_configs:
+          - targets: [vault:8200]
+
+      # SeaweedFS metrics
+      - job_name: seaweedfs
+        static_configs:
+          - targets:
+            - seaweedfs-master:9333
+            - seaweedfs-filer:9334
+
+      # Trino JMX metrics via Prometheus exporter (optional)
+      - job_name: trino
+        static_configs:
+          - targets: [trino:8080]
+        metrics_path: /v1/jmx/mbean/trino.memory:name=ClusterMemoryPool
+
+alertmanager:
+  enabled: false   # Enable when alert routing is configured
+
+# Alert rules matching the Docker Swarm stack
+additionalPrometheusRulesMap:
+  platform-alerts:
+    groups:
+      - name: airflow
+        rules:
+          - alert: AirflowSchedulerNotHeartbeating
+            expr: airflow_scheduler_heartbeat < 1
+            for: 5m
+            labels:
+              severity: critical
+          - alert: AirflowQueueDepthHigh
+            expr: airflow_executor_queued_tasks > 50
+            for: 10m
+            labels:
+              severity: warning
+      - name: storage
+        rules:
+          - alert: DiskUsageHigh
+            expr: (node_filesystem_size_bytes - node_filesystem_free_bytes) / node_filesystem_size_bytes > 0.80
+            for: 5m
+            labels:
+              severity: warning

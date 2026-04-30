@@ -1,8 +1,7 @@
 #!/usr/bin/env bash
-# Injects AZURE_CLIENT_ID from the azure_mi_client_id Docker secret so that
-# DefaultAzureCredential can identify the correct user-assigned managed identity
-# when multiple identities are attached to the VM.
+# Injects VAULT_TOKEN from the vault_airflow_token Docker secret so that
+# the HashiCorp Vault secrets backend can authenticate to Vault.
 set -euo pipefail
 
-export AZURE_CLIENT_ID="$(cat /run/secrets/azure_mi_client_id)"
+export VAULT_TOKEN="$(cat /run/secrets/vault_airflow_token)"
 exec /usr/bin/dumb-init -- /entrypoint "$@"

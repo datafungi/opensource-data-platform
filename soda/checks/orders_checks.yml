@@ -1,0 +1,29 @@
+checks for orders:
+  # Completeness
+  - row_count > 0:
+      name: orders table is not empty
+  - missing_count(order_id) = 0:
+      name: order_id has no nulls
+  - missing_count(customer_id) = 0:
+      name: customer_id has no nulls
+  - missing_count(order_date) = 0:
+      name: order_date has no nulls
+  - missing_count(amount) = 0:
+      name: amount has no nulls
+
+  # Uniqueness
+  - duplicate_count(order_id) = 0:
+      name: order_id is unique
+
+  # Validity
+  - invalid_count(status) = 0:
+      name: status contains only valid values
+      valid values: [pending, completed, cancelled]
+  - min(amount) >= 0:
+      name: amount is non-negative
+  - avg(amount) between 1 and 100000:
+      name: average order amount is within expected range
+
+  # Freshness — orders table should be updated at least daily
+  - freshness(order_date) < 2d:
+      name: orders are recent (within 2 days)

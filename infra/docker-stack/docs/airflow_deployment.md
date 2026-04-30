@@ -29,7 +29,7 @@
 - **Ansible collection installed:**
 
 ```bash
-cd infra/docker-stack/providers/azure/ansible
+cd infra/docker-stack/ansible
 ansible-galaxy collection install -r requirements.yml
 ```
 
@@ -62,7 +62,7 @@ plugins, push to the git repository — no image rebuild required.
 ## Running the playbook
 
 ```bash
-cd infra/docker-stack/providers/azure/ansible
+cd infra/docker-stack/ansible
 ansible-playbook deploy-airflow.yml
 ```
 
@@ -290,7 +290,7 @@ To remove all running services and stale Postgres Docker secrets before a fresh
 redeploy or password rotation:
 
 ```bash
-cd infra/docker-stack/providers/azure/ansible
+cd infra/docker-stack/ansible
 ansible-playbook teardown.yml
 ```
 
@@ -307,7 +307,7 @@ re-run `deploy-databases.yml` and `deploy-airflow.yml`.
 ## Updating the image (re-deployments)
 
 ```bash
-cd infra/docker-stack/providers/azure/ansible
+cd infra/docker-stack/ansible
 ansible-playbook deploy-airflow.yml \
   -e airflow_image=<registry>/airflow:3.2.0-<new-date>
 ```

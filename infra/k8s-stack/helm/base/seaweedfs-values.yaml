@@ -1,0 +1,41 @@
+master:
+  enabled: true
+  replicas: 1
+  resources:
+    limits:
+      cpu: 250m
+      memory: 256Mi
+    requests:
+      cpu: 100m
+      memory: 128Mi
+
+volume:
+  enabled: true
+  replicas: 1
+  persistence:
+    enabled: true
+    size: 50Gi
+    # storageClass: ""   # Uses cluster default
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 250m
+      memory: 256Mi
+
+filer:
+  enabled: true
+  replicas: 1
+  s3:
+    enabled: true
+    enableAuth: true
+    # Credentials from a K8s Secret named seaweedfs-s3-secret
+    existingConfigSecret: seaweedfs-s3-secret
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 250m
+      memory: 256Mi

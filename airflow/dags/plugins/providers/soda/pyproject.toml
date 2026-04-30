@@ -1,0 +1,17 @@
+[project]
+name = "airflow-provider-soda"
+version = "0.1.0"
+description = "Apache Airflow provider for Soda Core data quality scans"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "apache-airflow>=3.0.0",
+    "soda-core>=3.4.0",
+]
+
+[project.entry-points."apache_airflow_provider"]
+provider_info = "airflow_provider_soda:get_provider_info"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"

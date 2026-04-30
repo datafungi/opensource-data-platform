@@ -1,0 +1,38 @@
+version: 2
+
+sources:
+  - name: raw
+    description: Raw ingested data loaded by Airflow DAGs
+    tables:
+      - name: orders
+        description: Raw orders ingested from source systems
+        columns:
+          - name: order_id
+            description: Primary key
+            tests:
+              - not_null
+          - name: customer_id
+            tests:
+              - not_null
+          - name: order_date
+            tests:
+              - not_null
+          - name: amount
+            tests:
+              - not_null
+          - name: status
+            tests:
+              - not_null
+
+models:
+  - name: stg_orders
+    description: Staged orders with canonical types
+    columns:
+      - name: order_id
+        tests:
+          - unique
+          - not_null
+      - name: status
+        tests:
+          - accepted_values:
+              values: ["pending", "completed", "cancelled"]

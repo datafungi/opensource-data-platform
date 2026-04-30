@@ -1,0 +1,8 @@
+package-name: airflow-provider-odcs
+description: Apache Airflow provider for Open Data Contract Standard (ODCS) validation
+versions:
+  - 0.1.0
+
+operators:
+  - integration-name: ODCS
+    python-module: airflow_provider_odcs.operators.odcs

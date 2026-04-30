@@ -1,0 +1,46 @@
+services:
+  spark-master:
+    image: bitnami/spark:4.1.1
+    environment:
+      SPARK_MODE: master
+      SPARK_MASTER_HOST: spark-master
+      SPARK_RPC_AUTHENTICATION_ENABLED: "no"
+      SPARK_RPC_ENCRYPTION_ENABLED: "no"
+      SPARK_LOCAL_STORAGE_ENCRYPTION_ENABLED: "no"
+      SPARK_SSL_ENABLED: "no"
+    ports:
+      - "${SPARK_MASTER_PORT:-7077}:7077"   # Spark cluster port
+      - "8090:8080"                          # Spark master web UI
+    networks:
+      - data-platform-dev
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    restart: unless-stopped
+
+  spark-worker:
+    image: bitnami/spark:4.1.1
+    environment:
+      SPARK_MODE: worker
+      SPARK_MASTER_URL: spark://spark-master:7077
+      SPARK_WORKER_MEMORY: 2G
+      SPARK_WORKER_CORES: "2"
+      SPARK_RPC_AUTHENTICATION_ENABLED: "no"
+      SPARK_RPC_ENCRYPTION_ENABLED: "no"
+      SPARK_LOCAL_STORAGE_ENCRYPTION_ENABLED: "no"
+      SPARK_SSL_ENABLED: "no"
+    ports:
+      - "8091:8081"   # Spark worker web UI
+    networks:
+      - data-platform-dev
+    depends_on:
+      spark-master:
+        condition: service_healthy
+    restart: unless-stopped
+
+networks:
+  data-platform-dev:
+    external: true

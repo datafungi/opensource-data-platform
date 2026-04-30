@@ -1,0 +1,17 @@
+data_sources:
+  orders_clickhouse:
+    type: clickhouse
+    host: ${CLICKHOUSE_HOST:-clickhouse}
+    port: 8123
+    username: ${CLICKHOUSE_USER:-default}
+    password: ${CLICKHOUSE_PASSWORD:-}
+    database: default
+
+  airflow_postgres:
+    type: postgres
+    host: ${POSTGRES_HOST:-postgres}
+    port: 5432
+    username: ${POSTGRES_USER:-airflow}
+    password: ${POSTGRES_PASSWORD:-airflow}
+    database: airflow
+    schema: public
