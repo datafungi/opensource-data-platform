@@ -1,0 +1,128 @@
+services:
+  clickhouse:
+    image: clickhouse/clickhouse-server:25.4
+    volumes:
+      - type: bind
+        source: /mnt/gluster/clickhouse-data
+        target: /var/lib/clickhouse
+    ports:
+      - target: 8123
+        published: 8123
+        protocol: tcp
+        mode: ingress   # internal overlay only
+      - target: 9000
+        published: 9000
+        protocol: tcp
+        mode: ingress   # internal overlay only
+    networks:
+      - data-platform
+    secrets:
+      - clickhouse_password
+    environment:
+      CLICKHOUSE_DB: default
+      CLICKHOUSE_USER: default
+      CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: "1"
+      CLICKHOUSE_PASSWORD_FILE: /run/secrets/clickhouse_password
+    ulimits:
+      nofile:
+        soft: 262144
+        hard: 262144
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8123/ping"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    deploy:
+      replicas: 1
+      placement:
+        constraints:
+          - node.labels.nodename == node2
+      resources:
+        limits:
+          cpus: "2.00"
+          memory: 4G
+        reservations:
+          cpus: "0.50"
+          memory: 1G
+      restart_policy:
+        condition: on-failure
+        delay: 10s
+        max_attempts: 5
+        window: 300s
+
+  trino:
+    image: trinodb/trino:480
+    ports:
+      - target: 8080
+        published: 8085
+        protocol: tcp
+        mode: ingress
+    configs:
+      - source: trino_config
+        target: /etc/trino/config.properties
+      - source: trino_jvm_config
+        target: /etc/trino/jvm.config
+      - source: trino_node_properties
+        target: /etc/trino/node.properties
+      - source: trino_catalog_iceberg
+        target: /etc/trino/catalog/iceberg.properties
+      - source: trino_catalog_clickhouse
+        target: /etc/trino/catalog/clickhouse.properties
+      - source: trino_catalog_postgresql
+        target: /etc/trino/catalog/postgresql.properties
+    secrets:
+      - seaweedfs_access_key
+      - seaweedfs_secret_key
+      - clickhouse_password
+    networks:
+      - data-platform
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/v1/info"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 90s
+    deploy:
+      replicas: 1
+      placement:
+        constraints:
+          - node.labels.nodename == node3
+      resources:
+        limits:
+          cpus: "1.00"
+          memory: 4G
+        reservations:
+          cpus: "0.50"
+          memory: 2G
+      restart_policy:
+        condition: on-failure
+        delay: 10s
+        max_attempts: 5
+        window: 300s
+
+networks:
+  data-platform:
+    external: true
+
+configs:
+  trino_config:
+    external: true
+  trino_jvm_config:
+    external: true
+  trino_node_properties:
+    external: true
+  trino_catalog_iceberg:
+    external: true
+  trino_catalog_clickhouse:
+    external: true
+  trino_catalog_postgresql:
+    external: true
+
+secrets:
+  seaweedfs_access_key:
+    external: true
+  seaweedfs_secret_key:
+    external: true
+  clickhouse_password:
+    external: true

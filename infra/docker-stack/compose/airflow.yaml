@@ -14,22 +14,20 @@ x-airflow-common: &airflow-common
     AIRFLOW__METRICS__STATSD_ON: "true"
     AIRFLOW__METRICS__STATSD_PORT: "9125"
     AIRFLOW__SCHEDULER__ENABLE_HEALTH_CHECK: "true"
-    # Key Vault secret backend — resolves DAG connections and variables on demand.
-    # vault_url is substituted from the deploying shell by docker stack deploy.
-    AIRFLOW__SECRETS__BACKEND: airflow.providers.microsoft.azure.secrets.key_vault.AzureKeyVaultBackend
-    AIRFLOW__SECRETS__BACKEND_KWARGS: '{"vault_url": "https://${KEYVAULT_NAME}.vault.azure.net/", "connections_prefix": "airflow-connections", "variables_prefix": "airflow-variables", "config_prefix": "airflow-config"}'
-    # Infrastructure secrets fetched from Key Vault at startup.
-    # The backend looks up airflow-config-{value} in Key Vault for each.
+    # HashiCorp Vault secrets backend — resolves DAG connections and variables on demand.
+    AIRFLOW__SECRETS__BACKEND: airflow.providers.hashicorp.secrets.vault.VaultBackend
+    AIRFLOW__SECRETS__BACKEND_KWARGS: '{"connections_path": "airflow/connections", "variables_path": "airflow/variables", "config_path": "airflow/config", "url": "http://vault:8200", "auth_type": "token"}'
+    # Infrastructure secrets fetched from Vault at startup (path: secret/airflow/config/<value>).
     AIRFLOW__CORE__FERNET_KEY_SECRET: fernet-key
     AIRFLOW__API__SECRET_KEY_SECRET: api-secret-key
     AIRFLOW__DATABASE__SQL_ALCHEMY_CONN_SECRET: sql-alchemy-conn
     AIRFLOW__CELERY__BROKER_URL_SECRET: broker-url
     AIRFLOW__CELERY__RESULT_BACKEND_SECRET: result-backend
-    # Remote logging — task logs written to Azure Blob Storage via managed identity.
-    # Connection azure_blob_logs is resolved from Key Vault by the secrets backend.
+    # Remote logging — task logs written to SeaweedFS via S3-compatible API.
+    # Connection seaweedfs_logs is resolved from Vault by the secrets backend.
     AIRFLOW__LOGGING__REMOTE_LOGGING: "true"
-    AIRFLOW__LOGGING__REMOTE_BASE_LOG_FOLDER: "wasb://airflow-logs"
-    AIRFLOW__LOGGING__REMOTE_LOG_CONN_ID: "azure_blob_logs"
+    AIRFLOW__LOGGING__REMOTE_BASE_LOG_FOLDER: "s3://airflow-logs"
+    AIRFLOW__LOGGING__REMOTE_LOG_CONN_ID: "seaweedfs_logs"
     AIRFLOW__LOGGING__DELETE_LOCAL_LOGS: "true"
   volumes:
   - type: bind
@@ -43,7 +41,7 @@ x-airflow-common: &airflow-common
   networks:
   - data-platform
   secrets:
-  - azure_mi_client_id
+  - vault_airflow_token
   user: "50000:0"
 
 services:
@@ -321,7 +319,7 @@ configs:
     external: true
 
 secrets:
-  azure_mi_client_id:
+  vault_airflow_token:
     external: true
   gitsync_ssh_key:
     external: true

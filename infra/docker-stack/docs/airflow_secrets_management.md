@@ -1,423 +1,203 @@
-# Apache Airflow — Secrets Management
-### Azure Key Vault Backend on Docker Swarm
+# Airflow Secrets Management
 
-|                    |                                     |
-|--------------------|-------------------------------------|
-| **Scope**          | Apache Airflow on Docker Swarm Mode |
-| **Applies to**     | Airflow 3.x                         |
-| **Classification** | Internal / Operational              |
+Airflow resolves connections, variables, and configuration values at runtime from
+**HashiCorp Vault** (KV v2 secrets engine). No credentials are stored in environment
+variables or Docker configs.
 
 ---
 
-## Table of Contents
+## Architecture
 
-1. [Overview](#1-overview)
-2. [Prerequisites](#2-prerequisites)
-3. [Managed Identity Authentication](#3-managed-identity-authentication)
-4. [Key Vault Backend Configuration](#4-key-vault-backend-configuration)
-5. [Infrastructure Secrets (`_SECRET`)](#5-infrastructure-secrets-_secret)
-6. [DAG Connections and Variables](#6-dag-connections-and-variables)
-7. [Key Vault Secret Naming Reference](#7-key-vault-secret-naming-reference)
-8. [Key Rotation](#8-key-rotation)
-9. [Secret Scope Per Service](#9-secret-scope-per-service)
-10. [Ansible Deployment Notes](#10-ansible-deployment-notes)
-11. [Caveats and Best Practices](#11-caveats-and-best-practices)
+```
+Airflow container
+  └── reads /run/secrets/vault_airflow_token  (Docker secret)
+        └── authenticates to Vault (http://vault:8200, token auth)
+              ├── secret/airflow/config/*       → fernet key, DB conn, etc.
+              ├── secret/airflow/connections/*  → Airflow Connection URIs
+              └── secret/airflow/variables/*    → Airflow Variable values
+```
 
 ---
 
-## 1. Overview
+## Vault Secret Paths (KV v2)
 
-Airflow secrets are stored in **Azure Key Vault** and retrieved at runtime using the cluster VMs'
-**user-assigned managed identity** — no credentials are stored in the stack file or on disk.
-
-Two mechanisms work together:
-
-| Mechanism                | Purpose                                                 | How It Works                                                                                     |
-|--------------------------|---------------------------------------------------------|--------------------------------------------------------------------------------------------------|
-| `_SECRET` env var suffix | Infrastructure secrets: Fernet key, DB conn, broker URL | Airflow reads the secret name from the env var, then fetches the value from Key Vault at startup |
-| `AzureKeyVaultBackend`   | DAG connections and variables                           | Airflow backend that resolves connections/variables from Key Vault on demand                     |
-
-The only Docker secret used is `azure_mi_client_id` — the managed identity client ID needed to
-authenticate to Key Vault when multiple user-assigned identities are attached to the VM.
+| Vault path | Airflow config key |
+|---|---|
+| `secret/airflow/config/fernet-key` | `AIRFLOW__CORE__FERNET_KEY` |
+| `secret/airflow/config/api-secret-key` | `AIRFLOW__API__SECRET_KEY` |
+| `secret/airflow/config/sql-alchemy-conn` | `AIRFLOW__DATABASE__SQL_ALCHEMY_CONN` |
+| `secret/airflow/config/broker-url` | `AIRFLOW__CELERY__BROKER_URL` |
+| `secret/airflow/config/result-backend` | `AIRFLOW__CELERY__RESULT_BACKEND` |
+| `secret/airflow/connections/seaweedfs_logs` | S3-compatible remote log connection |
+| `secret/airflow/connections/<conn_id>` | Any Airflow Connection |
+| `secret/airflow/variables/<key>` | Any Airflow Variable |
 
 ---
 
-## 2. Prerequisites
-
-- **Provider installed:** `apache-airflow-providers-microsoft-azure` must be present in the
-  Airflow image. It is already included in `requirements.txt`.
-- **Key Vault access:** The cluster managed identity has `Get` and `List` secret permissions
-  on the Key Vault, granted by Terraform via `azurerm_key_vault_access_policy.cluster_vms`.
-- **Blob Storage access:** The cluster managed identity has `Storage Blob Data Contributor`
-  role on the storage account, granted by Terraform via `azurerm_role_assignment.cluster_storage`.
-  This allows all Airflow services to write task logs to the `airflow-logs` container.
-- **Managed identity client ID:** Available from the Terraform output or Azure CLI. Used to
-  disambiguate which user-assigned identity to use when authenticating.
-
----
-
-## 3. Managed Identity Authentication
-
-The `AzureKeyVaultBackend` uses `DefaultAzureCredential`, which automatically picks up the VM's
-managed identity. Because the identity is **user-assigned** (not system-assigned), the client ID
-must be specified to avoid ambiguity.
-
-### Store the client ID as a Docker secret
+## Bootstrap (first deploy)
 
 ```bash
-# Retrieve client ID from Azure (or Terraform output)
-CLIENT_ID=$(az identity show \
-  --name <name_prefix>-cluster-id \
-  --resource-group <name_prefix>-platform-rg \
-  --query clientId -o tsv)
+# 1. Initialise Vault (run once after vault service is healthy)
+docker exec -it $(docker ps -q -f name=vault) vault operator init
+# Save the 5 unseal keys and root token — they cannot be recovered.
 
-echo "$CLIENT_ID" | docker secret create azure_mi_client_id -
-```
+# 2. Unseal Vault (required after every Vault restart — use 3 of the 5 keys)
+docker exec -it $(docker ps -q -f name=vault) vault operator unseal   # repeat 3x
 
-### Inject at container startup via entrypoint wrapper
+# 3. Enable the KV v2 secrets engine
+vault secrets enable -path=secret kv-v2
 
-Create `scripts/airflow-entrypoint.sh` and deploy it alongside the stack:
+# 4. Create an Airflow read-only policy
+vault policy write airflow-read - <<'EOF'
+path "secret/data/airflow/*" {
+  capabilities = ["read"]
+}
+EOF
 
-```bash
-#!/usr/bin/env bash
-set -euo pipefail
-export AZURE_CLIENT_ID="$(cat /run/secrets/azure_mi_client_id)"
-exec /usr/bin/dumb-init -- /entrypoint "$@"
-```
+# 5. Create a token bound to that policy (1-year TTL; renew before expiry)
+AIRFLOW_TOKEN=$(vault token create \
+  -policy=airflow-read -no-default-policy -ttl=8760h \
+  -format=json | jq -r '.auth.client_token')
 
-`DefaultAzureCredential` and `ManagedIdentityCredential` both respect `AZURE_CLIENT_ID`
-automatically — no additional configuration is needed in `backend_kwargs`.
+# 6. Store the token as a Docker secret
+echo -n "$AIRFLOW_TOKEN" | docker secret create vault_airflow_token -
 
-The script is deployed as a Docker config (`airflow_entrypoint`) and mounted
-read-only into every Airflow container. Reference in the stack's anchor block:
+# 7. Write all required infrastructure secrets
+vault kv put secret/airflow/config/fernet-key \
+  value="$(python3 -c 'from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())')"
+vault kv put secret/airflow/config/api-secret-key   value="$(openssl rand -hex 32)"
+vault kv put secret/airflow/config/sql-alchemy-conn \
+  value="postgresql+psycopg2://airflow:<pw>@postgres:5432/airflow"
+vault kv put secret/airflow/config/broker-url       value="redis://:@redis:6379/0"
+vault kv put secret/airflow/config/result-backend \
+  value="db+postgresql://airflow:<pw>@postgres:5432/airflow"
 
-```yaml
-x-airflow-common: &airflow-common
-  entrypoint: ["/opt/scripts/airflow-entrypoint.sh"]
-  configs:
-    - source: airflow_entrypoint
-      target: /opt/scripts/airflow-entrypoint.sh
-      mode: 0755
-  secrets:
-    - azure_mi_client_id
-
-configs:
-  airflow_entrypoint:
-    external: true
-
-secrets:
-  azure_mi_client_id:
-    external: true
+# 8. Write the SeaweedFS remote-logging connection
+vault kv put secret/airflow/connections/seaweedfs_logs \
+  value="aws://<key>:<secret>@seaweedfs:8333?endpoint_url=http%3A%2F%2Fseaweedfs%3A8333&region_name=us-east-1"
 ```
 
 ---
 
-## 4. Key Vault Backend Configuration
+## Airflow Configuration Reference
 
-Set these on all Airflow services (include in the `x-airflow-common` anchor):
+Configured in `infra/docker-stack/compose/airflow.yaml` via `x-airflow-common`:
 
 ```yaml
-environment:
-  AIRFLOW__SECRETS__BACKEND: airflow.providers.microsoft.azure.secrets.key_vault.AzureKeyVaultBackend
-  AIRFLOW__SECRETS__BACKEND_KWARGS: >-
-    {
-      "vault_url": "https://<keyvault-name>.vault.azure.net/",
-      "connections_prefix": "airflow-connections",
-      "variables_prefix": "airflow-variables",
-      "config_prefix": "airflow-config"
-    }
+AIRFLOW__SECRETS__BACKEND: airflow.providers.hashicorp.secrets.vault.VaultBackend
+AIRFLOW__SECRETS__BACKEND_KWARGS: >-
+  {"connections_path": "airflow/connections",
+   "variables_path": "airflow/variables",
+   "config_path": "airflow/config",
+   "url": "http://vault:8200",
+   "auth_type": "token"}
+
+# Infrastructure secrets resolved via the backend at container startup:
+AIRFLOW__CORE__FERNET_KEY_SECRET:           fernet-key
+AIRFLOW__API__SECRET_KEY_SECRET:            api-secret-key
+AIRFLOW__DATABASE__SQL_ALCHEMY_CONN_SECRET: sql-alchemy-conn
+AIRFLOW__CELERY__BROKER_URL_SECRET:         broker-url
+AIRFLOW__CELERY__RESULT_BACKEND_SECRET:     result-backend
 ```
 
-The `vault_url` is not sensitive — it can be templated directly by Ansible from the Terraform
-output or Key Vault name variable.
+`VAULT_TOKEN` is injected by `airflow-entrypoint.sh` from the `vault_airflow_token`
+Docker secret at `/run/secrets/vault_airflow_token`.
 
 ---
 
-## 5. Infrastructure Secrets (`_SECRET`)
-
-The `_SECRET` suffix tells Airflow to fetch the config value from the secrets backend using the
-given name. It is supported for the same allowlist as `_CMD`:
-
-| Environment Variable                         | Value (Key Vault lookup key) |
-|----------------------------------------------|------------------------------|
-| `AIRFLOW__CORE__FERNET_KEY_SECRET`           | `fernet-key`                 |
-| `AIRFLOW__API__SECRET_KEY_SECRET`            | `api-secret-key`             |
-| `AIRFLOW__DATABASE__SQL_ALCHEMY_CONN_SECRET` | `sql-alchemy-conn`           |
-| `AIRFLOW__CELERY__BROKER_URL_SECRET`         | `broker-url`                 |
-| `AIRFLOW__CELERY__RESULT_BACKEND_SECRET`     | `result-backend`             |
-| `AIRFLOW__SMTP__SMTP_PASSWORD_SECRET`        | `smtp-password`              |
-
-The value of each env var is passed to `backend.get_config(key)`, which fetches the Key Vault
-secret named `{config_prefix}-{key}` (see [Section 7](#7-key-vault-secret-naming-reference)).
-
-These values are resolved **once at container startup** — a service restart is required after
-rotating any of these secrets in Key Vault.
-
-Add to the `x-airflow-common` anchor:
-
-```yaml
-environment:
-  AIRFLOW__CORE__FERNET_KEY_SECRET: "fernet-key"
-  AIRFLOW__API__SECRET_KEY_SECRET: "api-secret-key"
-  AIRFLOW__DATABASE__SQL_ALCHEMY_CONN_SECRET: "sql-alchemy-conn"
-  AIRFLOW__CELERY__BROKER_URL_SECRET: "broker-url"
-  AIRFLOW__CELERY__RESULT_BACKEND_SECRET: "result-backend"
-```
-
----
-
-## 6. DAG Connections and Variables
-
-Once the backend is configured, DAGs retrieve connections and variables from Key Vault
-transparently — no code changes are needed:
+## DAG Connections and Variables
 
 ```python
 from airflow.hooks.base import BaseHook
 from airflow.models import Variable
 
-conn = BaseHook.get_connection("my_postgres")   # fetches from Key Vault
-output_path = Variable.get("output_path")        # fetches from Key Vault
+conn = BaseHook.get_connection("my_postgres")  # fetches from Vault on demand
+val  = Variable.get("output_bucket")           # fetches from Vault on demand
 ```
 
-**Lookup precedence** (fixed, not configurable):
+**Lookup precedence:** Vault backend → environment variables → metastore DB.
 
-1. `AzureKeyVaultBackend` — fetches from Key Vault
-2. Environment variables — `AIRFLOW_CONN_*`, `AIRFLOW_VAR_*`
-3. Metastore database
-
-**Note:** `Variable.set()` and `Connection.set()` always write to the metastore, not Key Vault.
-Connections and variables that should come from Key Vault must be created there directly.
+`Variable.set()` and `Connection.save()` always write to the metastore — use the
+Vault CLI to manage secrets that should come from Vault.
 
 ---
 
-## 7. Key Vault Secret Naming Reference
-
-The backend constructs the full Key Vault secret name as `{prefix}-{key}`, where `key` has
-underscores replaced with hyphens and is lowercased.
-
-| Type       | Prefix                | Example key        | Full Key Vault secret name            |
-|------------|-----------------------|--------------------|---------------------------------------|
-| Config     | `airflow-config`      | `fernet-key`       | `airflow-config-fernet-key`           |
-| Config     | `airflow-config`      | `sql-alchemy-conn` | `airflow-config-sql-alchemy-conn`     |
-| Connection | `airflow-connections` | `my_postgres`      | `airflow-connections-my-postgres`     |
-| Connection | `airflow-connections` | `azure_blob_logs`  | `airflow-connections-azure-blob-logs` |
-| Variable   | `airflow-variables`   | `output_path`      | `airflow-variables-output-path`       |
-
-Postgres credential secrets use the `postgres-` prefix and are consumed as Docker secrets,
-not by Airflow's Key Vault backend directly:
-
-| Secret name                       | Created by | Consumed by                       |
-|-----------------------------------|------------|-----------------------------------|
-| `postgres-superuser-password`     | Terraform  | Docker secret → Postgres init     |
-| `postgres-airflow-password`       | Terraform  | Docker secret → Postgres init     |
-| `postgres-polaris-password`       | Terraform  | Docker secret → Postgres init     |
-| `airflow-config-sql-alchemy-conn` | Terraform  | Airflow `_SECRET` lookup          |
-| `gitsync-ssh-key`                 | Manual     | Docker secret → git-sync SSH auth |
-
-**Creating secrets in Key Vault:**
-
-Postgres passwords and the Airflow connection string are created automatically by
-`terraform apply`. The remaining Airflow secrets must be set manually:
+## Adding a New Connection
 
 ```bash
-KV="<keyvault-name>"
-
-az keyvault secret set --vault-name "$KV" --name "airflow-config-fernet-key"     --value "<fernet-key>"
-az keyvault secret set --vault-name "$KV" --name "airflow-config-api-secret-key" --value "<secret>"
-az keyvault secret set --vault-name "$KV" --name "airflow-config-broker-url"     --value "redis://redis:6379/0"
-az keyvault secret set --vault-name "$KV" --name "airflow-config-result-backend" --value "db+postgresql://airflow:<password>@postgres/airflow"
-
-# DAG connections (value must be a valid Airflow Connection URI)
-az keyvault secret set --vault-name "$KV" --name "airflow-connections-my-postgres" \
-  --value "postgresql://user:password@host:5432/mydb"
-
-# DAG variables
-az keyvault secret set --vault-name "$KV" --name "airflow-variables-output-path" \
-  --value "abfs://container@account.dfs.core.windows.net/output"
+vault kv put secret/airflow/connections/my_postgres \
+  value="postgresql://user:pass@db-host:5432/mydb"
 ```
+
+No service restart required — the next task access picks up the new value.
 
 ---
 
-## 8. Key Rotation
+## Key Rotation
 
-Rotating a secret in Key Vault does not require creating a new Docker secret or updating the stack
-file — update the value in Key Vault, then restart the affected services.
+### Infrastructure secrets (Fernet key, DB password, etc.)
 
-### Fernet Key Rotation
+These are resolved **once at container startup**. A service restart is required after rotation.
 
-The Fernet key encrypts connections and variables in the metadata database. A transition period is
-required to avoid making existing encrypted values unreadable.
+**Fernet key rotation requires a transition period** to avoid making existing encrypted
+DB values unreadable:
 
 ```bash
-KV="<keyvault-name>"
+OLD_KEY=$(vault kv get -field=value secret/airflow/config/fernet-key)
+NEW_KEY=$(python3 -c 'from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())')
 
-# 1. Generate a new Fernet key
-NEW_KEY=$(python3 -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())")
-
-# 2. Read the current key
-OLD_KEY=$(az keyvault secret show --vault-name "$KV" --name "airflow-config-fernet-key" --query value -o tsv)
-
-# 3. Set transition value: new,old — Airflow decrypts with either
-az keyvault secret set --vault-name "$KV" --name "airflow-config-fernet-key" --value "${NEW_KEY},${OLD_KEY}"
-
-# 4. Restart all Airflow services to pick up the transition key
+# Step 1: set transition key (new,old) and restart all services
+vault kv put secret/airflow/config/fernet-key value="${NEW_KEY},${OLD_KEY}"
 docker service update --force data-platform_airflow-apiserver
 docker service update --force data-platform_airflow-scheduler
 docker service update --force data-platform_airflow-worker
 
-# 5. Re-encrypt all metadata DB values with the new key
+# Step 2: re-encrypt all metastore values
 docker exec $(docker ps -q -f name=data-platform_airflow-worker | head -1) \
   airflow rotate-fernet-key
 
-# 6. Set the clean new key only
-az keyvault secret set --vault-name "$KV" --name "airflow-config-fernet-key" --value "$NEW_KEY"
-
-# 7. Restart services again to drop the old key from memory
+# Step 3: set only the new key and restart again
+vault kv put secret/airflow/config/fernet-key value="$NEW_KEY"
 docker service update --force data-platform_airflow-apiserver
 docker service update --force data-platform_airflow-scheduler
 docker service update --force data-platform_airflow-worker
 ```
 
-### Other Infrastructure Secrets (API key, DB password, broker URL)
+### Vault token rotation
 
 ```bash
-# Update the value in Key Vault
-az keyvault secret set --vault-name "$KV" --name "airflow-config-api-secret-key" --value "$(openssl rand -hex 32)"
+NEW_TOKEN=$(vault token create \
+  -policy=airflow-read -no-default-policy -ttl=8760h \
+  -format=json | jq -r '.auth.client_token')
 
-# Restart the affected services (all sessions are invalidated for the API key)
-docker service update --force data-platform_airflow-apiserver
-docker service update --force data-platform_airflow-scheduler
+# Docker Swarm requires remove + re-create for secrets
+echo -n "$NEW_TOKEN" | docker secret create vault_airflow_token_v2 -
+for svc in airflow-apiserver airflow-scheduler airflow-dag-processor \
+           airflow-triggerer airflow-worker airflow-init; do
+  docker service update \
+    --secret-rm vault_airflow_token \
+    --secret-add source=vault_airflow_token_v2,target=vault_airflow_token \
+    data-platform_${svc}
+done
+docker secret rm vault_airflow_token
+docker secret rename vault_airflow_token_v2 vault_airflow_token
 ```
-
-### DAG Connections and Variables
-
-Connections and variables are fetched from Key Vault on demand — **no service restart required**
-after updating them.
-
-```bash
-az keyvault secret set --vault-name "$KV" \
-  --name "airflow-connections-my-postgres" \
-  --value "postgresql://user:new_password@host:5432/mydb"
-```
-
-The next DAG task that accesses `my_postgres` will pick up the new value automatically.
 
 ---
 
-## 9. Secret Scope Per Service
+## Secret Scope Per Service
 
-The `azure_mi_client_id` Docker secret must be mounted on every Airflow service that
-authenticates to Key Vault or Blob Storage. The `gitsync_ssh_key` secret and
-`gitsync_known_hosts` config are used exclusively by the git-sync service.
-
-| Secret / Config       | API server | Scheduler | DAG processor | Worker | Triggerer | git-sync |
-|-----------------------|------------|-----------|---------------|--------|-----------|----------|
-| `azure_mi_client_id`  | ✅          | ✅         | ✅             | ✅      | ✅         | —        |
-| `gitsync_ssh_key`     | —          | —         | —             | —      | —         | ✅        |
-| `gitsync_known_hosts` | —          | —         | —             | —      | —         | ✅        |
-
-Infrastructure secrets (Fernet key, DB conn, etc.) and DAG connections/variables are fetched
-directly from Key Vault — no per-service Docker secret declarations are needed for them.
+| Secret | API server | Scheduler | DAG processor | Worker | Triggerer | git-sync |
+|---|---|---|---|---|---|---|
+| `vault_airflow_token` | ✅ | ✅ | ✅ | ✅ | ✅ | — |
+| `gitsync_ssh_key` | — | — | — | — | — | ✅ |
+| `gitsync_known_hosts` (config) | — | — | — | — | — | ✅ |
 
 ---
 
-## 10. Ansible Deployment Notes
+## Caveats
 
-The following Ansible tasks cover the deployment prerequisites.
-
-**Retrieve managed identity client ID and create Docker secret:**
-
-```yaml
-- name: Get managed identity client ID
-  command: >
-    az identity show
-    --name {{ name_prefix }}-cluster-id
-    --resource-group {{ name_prefix }}-platform-rg
-    --query clientId -o tsv
-  register: mi_client_id
-  delegate_to: localhost
-
-- name: Create azure_mi_client_id Docker secret
-  community.docker.docker_secret:
-    name: azure_mi_client_id
-    data: "{{ mi_client_id.stdout }}"
-    state: present
-```
-
-**Create Postgres Docker secrets from Key Vault (run before first stack deploy):**
-
-Postgres passwords are generated by Terraform and stored in Key Vault as `postgres-*`
-secrets. Ansible reads them and materialises them as Docker secrets so the Postgres
-container and its init script can consume them at startup.
-
-```yaml
-- name: Read Postgres passwords from Key Vault
-  command: >
-    az keyvault secret show
-    --vault-name {{ keyvault_name }}
-    --name {{ item }}
-    --query value -o tsv
-  loop:
-    - postgres-superuser-password
-    - postgres-airflow-password
-    - postgres-polaris-password
-  register: pg_passwords
-  delegate_to: localhost
-  no_log: true
-
-- name: Create Postgres Docker secrets
-  community.docker.docker_secret:
-    name: "{{ item.item | replace('postgres-', 'postgres_') | replace('-', '_') }}"
-    data: "{{ item.stdout }}"
-    state: present
-  loop: "{{ pg_passwords.results }}"
-  no_log: true
-```
-
-This produces three Docker secrets: `postgres_superuser_password`,
-`postgres_airflow_password`, and `postgres_polaris_password`.
-
-**Populate remaining Airflow infrastructure secrets in Key Vault (run once per environment):**
-
-`sql-alchemy-conn` is already populated by Terraform. Only the Airflow-specific secrets
-that Terraform does not generate need to be set manually:
-
-```yaml
-- name: Set Airflow infrastructure secrets in Key Vault
-  command: >
-    az keyvault secret set
-    --vault-name {{ keyvault_name }}
-    --name {{ item.name }}
-    --value {{ item.value }}
-  loop:
-    - { name: "airflow-config-fernet-key",     value: "{{ airflow_fernet_key }}" }
-    - { name: "airflow-config-api-secret-key", value: "{{ airflow_api_secret }}" }
-    - { name: "airflow-config-broker-url",     value: "{{ airflow_broker_url }}" }
-    - { name: "airflow-config-result-backend", value: "{{ airflow_result_backend }}" }
-  delegate_to: localhost
-  no_log: true
-```
-
-The Key Vault name comes from the `key_vault_name` Terraform output. Secret values
-should be sourced from Ansible Vault.
-
----
-
-## 11. Caveats and Best Practices
-
-- **Infrastructure secrets are startup-only.** `_SECRET` values are resolved when the container
-  starts. Rotating them in Key Vault requires a service restart to take effect.
-- **DAG connections and variables are fetched on demand.** Updates to Key Vault are picked up
-  immediately by the next task access — no restart needed.
-- **`Variable.set()` writes to the metastore, not Key Vault.** Never use the Airflow UI or CLI to
-  set a variable that should come from Key Vault — it will shadow the Key Vault value at the
-  wrong precedence level.
-- **Fernet key rotation requires the transition period.** Set `new,old` first, re-encrypt, then
-  set `new` only. Skipping the transition will make existing encrypted DB values unreadable.
-- **Long-lived workers may cache connections.** After rotating a connection in Key Vault, tasks
-  that hold a live database connection may not see the new credentials until the next connection
-  cycle. Force a worker restart if immediate propagation is needed:
-  `docker service update --force data-platform_airflow-worker`.
-- **Key Vault request throttling.** Key Vault is rate-limited. For high-frequency variable lookups
-  in DAGs, prefer using the metastore (`Variable.set()`) for non-sensitive values and reserve Key
-  Vault for credentials.
+- **Infrastructure `_SECRET` vars are startup-only.** Rotating them in Vault requires a service restart.
+- **DAG connections and variables are on-demand.** Updates to Vault are picked up immediately.
+- **`Variable.set()` writes to the metastore, not Vault.** It will shadow the Vault value.
+- **Long-lived workers may cache connections.** Force a worker restart after rotating DB credentials if immediate propagation is needed.

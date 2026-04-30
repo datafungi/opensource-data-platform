@@ -1,0 +1,29 @@
+services:
+  trino:
+    image: trinodb/trino:480
+    ports:
+      - "8085:8080"    # Trino UI and API (8085 externally to avoid collision with Airflow)
+    volumes:
+      - type: bind
+        source: infra/dev/compose/trino-config
+        target: /etc/trino
+        read_only: true
+    environment:
+      # Credentials passed to catalog property files via ${ENV:...} substitution
+      SEAWEEDFS_ACCESS_KEY: ${SEAWEEDFS_ACCESS_KEY:-seaweedadmin}
+      SEAWEEDFS_SECRET_KEY: ${SEAWEEDFS_SECRET_KEY:-seaweedadmin}
+      CLICKHOUSE_USER: ${CLICKHOUSE_USER:-default}
+      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD:-}
+    networks:
+      - data-platform-dev
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/v1/info"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    restart: unless-stopped
+
+networks:
+  data-platform-dev:
+    external: true

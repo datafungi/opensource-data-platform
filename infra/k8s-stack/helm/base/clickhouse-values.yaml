@@ -1,0 +1,19 @@
+auth:
+  username: default
+  existingSecret: clickhouse-secret
+  existingSecretKey: password
+
+shards: 1
+replicaCount: 1
+
+persistence:
+  enabled: true
+  size: 50Gi
+
+resources:
+  limits:
+    cpu: "2"
+    memory: 4Gi
+  requests:
+    cpu: "500m"
+    memory: 1Gi

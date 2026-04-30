@@ -1,0 +1,8 @@
+package-name: airflow-provider-soda
+description: Apache Airflow provider for Soda Core data quality scans
+versions:
+  - 0.1.0
+
+operators:
+  - integration-name: Soda
+    python-module: airflow_provider_soda.operators.soda

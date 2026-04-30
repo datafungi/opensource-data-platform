@@ -1,0 +1,76 @@
+executor: CeleryExecutor
+
+# DAG delivery via git-sync sidecar (same approach as Docker Swarm stack)
+dags:
+  gitSync:
+    enabled: true
+    repo: ""          # Set to your git repo URL
+    branch: main
+    depth: 1
+    wait: 60
+    subPath: ""
+
+# Vault secrets backend — token injected via K8s Secret
+config:
+  secrets:
+    backend: airflow.providers.hashicorp.secrets.vault.VaultBackend
+    backend_kwargs: >-
+      {"connections_path": "airflow/connections",
+       "variables_path": "airflow/variables",
+       "config_path": "airflow/config",
+       "url": "http://vault:8200",
+       "auth_type": "token"}
+  core:
+    fernet_key_secret: fernet-key
+  celery:
+    broker_url_secret: broker-url
+    result_backend_secret: result-backend
+  database:
+    sql_alchemy_conn_secret: sql-alchemy-conn
+  metrics:
+    statsd_on: "true"
+    statsd_host: statsd-exporter
+    statsd_port: "9125"
+
+# K8s Secret containing VAULT_TOKEN (create before deploying)
+extraEnvFrom:
+  - secretRef:
+      name: vault-airflow-token
+
+# StatsD sidecar for Prometheus metrics
+statsd:
+  enabled: true
+
+# Airflow image (must include all required providers)
+images:
+  airflow:
+    repository: localairflow
+    tag: latest
+    pullPolicy: IfNotPresent
+
+# Worker resources
+workers:
+  replicas: 2
+  resources:
+    limits:
+      cpu: "1"
+      memory: 2Gi
+    requests:
+      cpu: "500m"
+      memory: 1Gi
+
+# Scheduler
+scheduler:
+  resources:
+    limits:
+      cpu: "500m"
+      memory: 1Gi
+    requests:
+      cpu: "250m"
+      memory: 512Mi
+
+# Use external PostgreSQL and Redis (deployed via separate Helm releases)
+postgresql:
+  enabled: false
+redis:
+  enabled: false

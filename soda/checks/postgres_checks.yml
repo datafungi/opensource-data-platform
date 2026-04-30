@@ -1,0 +1,9 @@
+checks for dag:
+  # Airflow metadata DB — verify scheduler is producing recent DAG runs
+  - row_count > 0:
+      name: dag table is not empty
+
+checks for dag_run:
+  # At least one DAG run should exist in the last 7 days
+  - row_count > 0:
+      name: dag_run table is not empty

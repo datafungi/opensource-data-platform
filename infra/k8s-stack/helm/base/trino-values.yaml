@@ -1,0 +1,43 @@
+server:
+  workers: 1
+
+coordinator:
+  resources:
+    limits:
+      cpu: "1"
+      memory: 4Gi
+    requests:
+      cpu: "500m"
+      memory: 2Gi
+
+worker:
+  resources:
+    limits:
+      cpu: "1"
+      memory: 4Gi
+    requests:
+      cpu: "500m"
+      memory: 2Gi
+
+# Catalog configs — mount as additional config files.
+# Credentials use ${ENV:...} substitution resolved at container start.
+additionalCatalogs:
+  iceberg: |
+    connector.name=iceberg
+    iceberg.catalog.type=rest
+    iceberg.rest-catalog.uri=http://polaris:8181
+    iceberg.rest-catalog.warehouse=s3://iceberg-warehouse
+    fs.native-s3.enabled=true
+    s3.endpoint=http://seaweedfs-filer:8333
+    s3.path-style-access=true
+    s3.region=us-east-1
+
+  clickhouse: |
+    connector.name=clickhouse
+    connection-url=jdbc:clickhouse://clickhouse:8123/default
+    connection-user=default
+
+  postgresql: |
+    connector.name=postgresql
+    connection-url=jdbc:postgresql://postgresql:5432/airflow
+    connection-user=airflow

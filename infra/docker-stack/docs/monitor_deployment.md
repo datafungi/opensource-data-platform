@@ -21,7 +21,7 @@
 - **Ansible collection installed:**
 
 ```bash
-cd infra/docker-stack/providers/azure/ansible
+cd infra/docker-stack/ansible
 ansible-galaxy collection install -r requirements.yml
 ```
 
@@ -30,7 +30,7 @@ ansible-galaxy collection install -r requirements.yml
 ## Running the playbook
 
 ```bash
-cd infra/docker-stack/providers/azure/ansible
+cd infra/docker-stack/ansible
 ansible-playbook deploy-monitor.yml
 ```
 
@@ -203,7 +203,7 @@ statsd-exporter bakes them into the metric name
 docker config rm statsd_mapping 2>/dev/null || true
 
 # From your local machine:
-cd infra/docker-stack/providers/azure/ansible
+cd infra/docker-stack/ansible
 ansible-playbook deploy-monitor.yml
 ```
 

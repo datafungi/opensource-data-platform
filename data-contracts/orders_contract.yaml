@@ -1,0 +1,109 @@
+dataContractSpecification: 3.1.0
+
+id: urn:datacontract:orders:v1
+info:
+  title: Orders
+  version: 1.0.0
+  status: active
+  description: Order transactions ingested from source systems and transformed by dbt.
+  owner: platform-team
+  contact:
+    name: Platform Team
+    email: nguyen.vo@datafungi.net
+
+servers:
+  production:
+    type: clickhouse
+    host: clickhouse
+    port: 8123
+    database: default
+    schema: marts
+
+terms:
+  usage: >
+    This data contract covers the orders dataset in the marts layer.
+    Consumers may use this data for reporting and analytics purposes.
+    Direct mutation of marts tables is prohibited — use dbt models.
+  limitations: >
+    Data is refreshed daily via the dbt_clickhouse Airflow DAG.
+    Intraday freshness is not guaranteed.
+  billing: free
+  noticePeriod: P3M
+
+models:
+  fct_orders:
+    description: Daily order fact table produced by dbt from staged ClickHouse data.
+    type: table
+    fields:
+      order_id:
+        type: bigint
+        required: true
+        unique: true
+        primaryKey: true
+        description: Unique order identifier
+      customer_id:
+        type: varchar
+        required: true
+        description: Customer identifier from source system
+      order_date:
+        type: date
+        required: true
+        description: Date the order was placed
+      order_month:
+        type: date
+        required: true
+        description: First day of the month the order was placed
+      order_day_of_week:
+        type: integer
+        required: true
+        description: Day of week (1=Monday, 7=Sunday)
+      amount_usd:
+        type: double
+        required: true
+        description: Order amount in USD
+      amount_eur:
+        type: double
+        required: true
+        description: Order amount in EUR (converted at 0.92 rate)
+      status:
+        type: varchar
+        required: true
+        description: Order status
+        enum: [pending, completed, cancelled]
+      is_completed:
+        type: boolean
+        required: true
+        description: True when status = completed
+      _loaded_at:
+        type: timestamp
+        required: true
+        description: Timestamp when the row was loaded by dbt
+
+quality:
+  type: SodaCL
+  specification:
+    checks for fct_orders:
+      - row_count > 0:
+          name: fct_orders is not empty
+      - missing_count(order_id) = 0:
+          name: order_id has no nulls
+      - duplicate_count(order_id) = 0:
+          name: order_id is unique
+      - missing_count(customer_id) = 0:
+          name: customer_id has no nulls
+      - invalid_count(status) = 0:
+          name: status only contains valid values
+          valid values: [pending, completed, cancelled]
+      - min(amount_usd) >= 0:
+          name: amount_usd is non-negative
+      - freshness(_loaded_at) < 2d:
+          name: fct_orders is refreshed daily
+
+servicelevels:
+  availability:
+    description: Table is available for query via Trino or ClickHouse native API.
+    percentage: 99.5
+  freshness:
+    description: Data is refreshed no later than 06:00 UTC daily.
+    threshold: 25h
+    timestampField: _loaded_at
