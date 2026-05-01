@@ -69,7 +69,7 @@ vault-init:
 	  vault secrets enable -path=secret kv-v2 2>/dev/null || true
 	@VAULT_ADDR=http://localhost:8200 VAULT_TOKEN=root \
 	  vault kv put secret/airflow/config/fernet-key \
-	    value="$$(python3 -c 'from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())')"
+	    value="$$(python3 -c 'import base64,os; print(base64.urlsafe_b64encode(os.urandom(32)).decode())')"
 	@VAULT_ADDR=http://localhost:8200 VAULT_TOKEN=root \
 	  vault kv put secret/airflow/config/api-secret-key value="$$(openssl rand -hex 32)"
 	@VAULT_ADDR=http://localhost:8200 VAULT_TOKEN=root \
@@ -87,25 +87,22 @@ vault-init:
 
 # Bootstrap OpenBao dev instance with the secrets Airflow expects.
 # Requires: make up openbao (OpenBao must be running in dev mode, root token = "root")
+# Runs bao inside the container — no host bao install needed.
+OPENBAO_EXEC = docker compose --project-directory . -f $(OPENBAO_COMPOSE) exec -T -e VAULT_TOKEN=root openbao bao
 openbao-init:
 	@echo "Seeding OpenBao dev instance..."
-	@VAULT_ADDR=http://localhost:8200 VAULT_TOKEN=root \
-	  bao secrets enable -path=secret kv-v2 2>/dev/null || true
-	@VAULT_ADDR=http://localhost:8200 VAULT_TOKEN=root \
-	  bao kv put secret/airflow/config/fernet-key \
-	    value="$$(python3 -c 'from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())')"
-	@VAULT_ADDR=http://localhost:8200 VAULT_TOKEN=root \
-	  bao kv put secret/airflow/config/api-secret-key value="$$(openssl rand -hex 32)"
-	@VAULT_ADDR=http://localhost:8200 VAULT_TOKEN=root \
-	  bao kv put secret/airflow/config/sql-alchemy-conn \
+	@$(OPENBAO_EXEC) secrets enable -path=secret kv-v2 2>/dev/null || true
+	@$(OPENBAO_EXEC) kv put secret/airflow/config/fernet-key \
+	    value="$$(python3 -c 'import base64,os; print(base64.urlsafe_b64encode(os.urandom(32)).decode())')"
+	@$(OPENBAO_EXEC) kv put secret/airflow/config/api-secret-key \
+	    value="$$(openssl rand -hex 32)"
+	@$(OPENBAO_EXEC) kv put secret/airflow/config/sql-alchemy-conn \
 	    value="postgresql+psycopg2://airflow:airflow@postgres:5432/airflow"
-	@VAULT_ADDR=http://localhost:8200 VAULT_TOKEN=root \
-	  bao kv put secret/airflow/config/broker-url value="redis://:@redis:6379/0"
-	@VAULT_ADDR=http://localhost:8200 VAULT_TOKEN=root \
-	  bao kv put secret/airflow/config/result-backend \
+	@$(OPENBAO_EXEC) kv put secret/airflow/config/broker-url \
+	    value="redis://:@redis:6379/0"
+	@$(OPENBAO_EXEC) kv put secret/airflow/config/result-backend \
 	    value="db+postgresql://airflow:airflow@postgres:5432/airflow"
-	@VAULT_ADDR=http://localhost:8200 VAULT_TOKEN=root \
-	  bao kv put secret/airflow/connections/seaweedfs_logs \
+	@$(OPENBAO_EXEC) kv put secret/airflow/connections/seaweedfs_logs \
 	    value="aws://seaweedadmin:seaweedadmin@seaweedfs:8333?endpoint_url=http%3A%2F%2Fseaweedfs%3A8333&region_name=us-east-1"
 	@echo "OpenBao seeded. Access at http://localhost:8200 (token: root)"
 
