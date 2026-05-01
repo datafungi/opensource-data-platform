@@ -1,0 +1,57 @@
+services:
+  openbao:
+    image: openbao/openbao:2.5
+    # Production mode: file storage on GlusterFS, manually unsealed.
+    # Run `bao operator init` then `bao operator unseal` (3x) after first deploy.
+    command: bao server -config=/openbao/config/openbao.hcl
+    cap_add:
+      - IPC_LOCK   # prevents secrets from being swapped to disk
+    configs:
+      - source: openbao_config
+        target: /openbao/config/openbao.hcl
+        mode: 0444
+    volumes:
+      - type: bind
+        source: /mnt/gluster/openbao-data
+        target: /openbao/data
+    ports:
+      - target: 8200
+        published: 8200
+        protocol: tcp
+        mode: host
+    networks:
+      - data-platform
+    healthcheck:
+      # Returns 0 when initialized+unsealed, 1 when sealed, 2 when not init'd.
+      # Accept all non-zero exits — sealed vault needs operator action, not a restart.
+      test: ["CMD-SHELL", "bao status || exit 0"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+    deploy:
+      replicas: 1
+      placement:
+        constraints:
+          - node.labels.stateful == true
+          - node.labels.nodename == node1
+      resources:
+        limits:
+          cpus: "0.25"
+          memory: 256M
+        reservations:
+          cpus: "0.10"
+          memory: 128M
+      restart_policy:
+        condition: on-failure
+        delay: 10s
+        max_attempts: 5
+        window: 300s
+
+networks:
+  data-platform:
+    external: true
+
+configs:
+  openbao_config:
+    external: true

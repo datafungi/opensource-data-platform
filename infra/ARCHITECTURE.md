@@ -34,7 +34,7 @@ playbooks regardless of where the machines live.
 Standard (ODCS). Every dataset has a contract; every contract has SodaCL checks that
 run daily. A red Airflow task is the signal that the producer must investigate.
 
-**Secrets never in code.** All credentials are stored in HashiCorp Vault and injected
+**Secrets never in code.** All credentials are stored in OpenBao and injected
 at runtime. No secrets in environment files, Docker configs, or git history.
 
 **Observability from day one.** Prometheus and Grafana are first-class services, not
@@ -44,25 +44,25 @@ afterthoughts. Every service exports metrics; alerting is configured from deploy
 
 ## 2. Stack Overview
 
-| Function        | Tool                                | Version |
-|-----------------|-------------------------------------|---------|
-| Orchestration   | Apache Airflow                      | 3.2     |
-| Relational DB   | PostgreSQL                          | 17      |
-| Broker          | Redis                               | 8       |
-| Analytics DB    | ClickHouse                          | 25.4    |
-| Object storage  | SeaweedFS                           | 4.21    |
-| Secrets         | HashiCorp Vault                     | 1.19.0  |
-| SQL transforms  | dbt-core + dbt-clickhouse + cosmos  | 1.8     |
-| Federated SQL   | Trino                               | 480     |
-| Batch compute   | Apache Spark                        | 4.1.1   |
-| Stream ingest   | Apache Kafka (KRaft)                | 4.0     |
-| Stream compute  | Apache Flink                        | 2.2.0   |
-| Table format    | Apache Iceberg                      | 1.10.1  |
-| Iceberg catalog | Apache Polaris                      | latest  |
-| Data quality    | Soda Core                           | 3.4     |
-| Data lineage    | Marquez + OpenLineage               | latest  |
-| Metrics         | Prometheus + Grafana                | latest  |
-| Distributed FS  | GlusterFS (Swarm only)              | latest  |
+| Function        | Tool                               | Version |
+|-----------------|------------------------------------|---------|
+| Orchestration   | Apache Airflow                     | 3.2     |
+| Relational DB   | PostgreSQL                         | 17      |
+| Broker          | Redis                              | 8       |
+| Analytics DB    | ClickHouse                         | 25.4    |
+| Object storage  | SeaweedFS                          | 4.21    |
+| Secrets         | OpenBao                            | 2.5     |
+| SQL transforms  | dbt-core + dbt-clickhouse + cosmos | 1.8     |
+| Federated SQL   | Trino                              | 480     |
+| Batch compute   | Apache Spark                       | 4.1.1   |
+| Stream ingest   | Apache Kafka (KRaft)               | 4.0     |
+| Stream compute  | Apache Flink                       | 2.2.0   |
+| Table format    | Apache Iceberg                     | 1.10.1  |
+| Iceberg catalog | Apache Polaris                     | latest  |
+| Data quality    | Soda Core                          | 3.4     |
+| Data lineage    | Marquez + OpenLineage              | latest  |
+| Metrics         | Prometheus + Grafana               | latest  |
+| Distributed FS  | GlusterFS (Swarm only)             | latest  |
 
 ### When to use Docker Swarm vs Kubernetes
 
@@ -83,16 +83,17 @@ All components run as Docker Compose services sharing the `data-platform-dev` ne
 
 ### Compose files
 
-| File                                  | Services                                  |
-|---------------------------------------|-------------------------------------------|
-| `infra/dev/compose/airflow.lite.yaml` | Airflow (LocalExecutor), PostgreSQL       |
-| `infra/dev/compose/clickhouse.yaml`   | ClickHouse 25.4                           |
-| `infra/dev/compose/seaweedfs.yaml`    | SeaweedFS (master + volume + filer + S3)  |
-| `infra/dev/compose/vault.yaml`        | HashiCorp Vault 1.19.0 (dev mode)         |
-| `infra/dev/compose/trino.yaml`        | Trino 480 (single-node coordinator)       |
-| `infra/dev/compose/spark.yaml`        | Spark 4.1.1 master + 1 worker             |
-| `infra/dev/compose/kafka.yaml`        | Kafka 4.0 (KRaft, single-node)            |
-| `infra/dev/compose/flink.yaml`        | Flink 2.2.0 JobManager + TaskManager      |
+| File                                     | Services                                 |
+|------------------------------------------|------------------------------------------|
+| `infra/dev/compose/airflow.lite.yaml`    | Airflow (LocalExecutor), PostgreSQL      |
+| `infra/dev/compose/clickhouse.yaml`      | ClickHouse 25.4                          |
+| `infra/dev/compose/seaweedfs.yaml`       | SeaweedFS (master + volume + filer + S3) |
+| `infra/dev/compose/openbao.yaml`         | OpenBao 2.5 (dev mode, default)          |
+| `infra/dev/compose/hashicorp-vault.yaml` | HashiCorp Vault 2.0 (dev mode, alt)      |
+| `infra/dev/compose/trino.yaml`           | Trino 480 (single-node coordinator)      |
+| `infra/dev/compose/spark.yaml`           | Spark 4.1.1 master + 1 worker            |
+| `infra/dev/compose/kafka.yaml`           | Kafka 4.0 (KRaft, single-node)           |
+| `infra/dev/compose/flink.yaml`           | Flink 2.2.0 JobManager + TaskManager     |
 
 ### Ports
 
@@ -100,7 +101,7 @@ All components run as Docker Compose services sharing the `data-platform-dev` ne
 |--------------------|------|--------------------------|
 | Airflow UI         | 8080 |                          |
 | Flink Web UI       | 8082 |                          |
-| Vault UI + API     | 8200 | token: `root` (dev mode) |
+| OpenBao / Vault UI | 8200 | token: `root` (dev mode) |
 | SeaweedFS S3 API   | 8333 |                          |
 | SeaweedFS filer UI | 8888 |                          |
 | Trino UI + API     | 8085 |                          |
@@ -117,7 +118,8 @@ All components run as Docker Compose services sharing the `data-platform-dev` ne
 make up [component...]    # start all or specific components (kafka, flink, spark, trino…)
 make down [component...]  # stop
 make build                # build the local Airflow image
-make vault-init           # seed Vault dev with Airflow secrets
+make openbao-init         # seed OpenBao dev with Airflow secrets (default)
+make vault-init           # alternative: seed HashiCorp Vault dev instance instead
 make seaweedfs-init       # create S3 buckets (airflow-logs, backups, iceberg-warehouse)
 make kafka-init           # create default Kafka topics (raw-orders, flink-output)
 ```
@@ -130,11 +132,11 @@ make kafka-init           # create default Kafka topics (raw-orders, flink-outpu
 
 3 Linux VMs connected by a private network (any provider or bare-metal):
 
-| Node  | Label                             | Stateful services                                | Other services                              |
-|-------|-----------------------------------|--------------------------------------------------|---------------------------------------------|
-| node1 | `stateful=true`, `nodename=node1` | PostgreSQL, Redis, Vault, SeaweedFS master+filer | Airflow Scheduler, DAG Processor, Triggerer |
-| node2 | `nodename=node2`                  | SeaweedFS volume                                 | Airflow API Server, Workers, ClickHouse     |
-| node3 | `nodename=node3`                  | SeaweedFS volume                                 | Trino, Prometheus, Grafana, Airflow Workers |
+| Node  | Label                             | Stateful services                                  | Other services                              |
+|-------|-----------------------------------|----------------------------------------------------|---------------------------------------------|
+| node1 | `stateful=true`, `nodename=node1` | PostgreSQL, Redis, OpenBao, SeaweedFS master+filer | Airflow Scheduler, DAG Processor, Triggerer |
+| node2 | `nodename=node2`                  | SeaweedFS volume                                   | Airflow API Server, Workers, ClickHouse     |
+| node3 | `nodename=node3`                  | SeaweedFS volume                                   | Trino, Prometheus, Grafana, Airflow Workers |
 
 Shared across all nodes:
 - **GlusterFS replica=3** at `/mnt/gluster` — persistent volumes for all stateful services
@@ -143,23 +145,24 @@ Shared across all nodes:
 
 ### Swarm stack files
 
-| File                        | Services deployed                                        |
-|-----------------------------|----------------------------------------------------------|
-| `compose/databases.yaml`    | PostgreSQL 17, Redis 8                                   |
-| `compose/secrets.yaml`      | HashiCorp Vault 1.19.0                                   |
-| `compose/storage.yaml`      | SeaweedFS 4.21 (master, volume servers, filer)           |
-| `compose/airflow.yaml`      | Airflow API server, scheduler, workers, flower, git-sync |
-| `compose/airflow-init.yaml` | One-time DB migration + admin user creation              |
-| `compose/analytics.yaml`    | ClickHouse 25.4, Trino 480                               |
-| `compose/streaming.yaml`    | Kafka 4.0 (KRaft), Flink 2.2.0 (1 JM + 2 TM replicas)  |
-| `compose/monitor.yaml`      | Prometheus, Grafana, StatsD exporter, exporters          |
+| File                           | Services deployed                                        |
+|--------------------------------|----------------------------------------------------------|
+| `compose/databases.yaml`       | PostgreSQL 17, Redis 8                                   |
+| `compose/openbao.yaml`         | OpenBao 2.5 (default secrets manager)                    |
+| `compose/hashicorp-vault.yaml` | HashiCorp Vault 2.0 (alternative)                        |
+| `compose/storage.yaml`         | SeaweedFS 4.21 (master, volume servers, filer)           |
+| `compose/airflow.yaml`         | Airflow API server, scheduler, workers, flower, git-sync |
+| `compose/airflow-init.yaml`    | One-time DB migration + admin user creation              |
+| `compose/analytics.yaml`       | ClickHouse 25.4, Trino 480                               |
+| `compose/streaming.yaml`       | Kafka 4.0 (KRaft), Flink 2.2.0 (1 JM + 2 TM replicas)    |
+| `compose/monitor.yaml`         | Prometheus, Grafana, StatsD exporter, exporters          |
 
 ### Networking
 
 All services communicate over a Docker overlay network (`data-platform`). Inbound access:
 - Port 8080 (Airflow UI) — Tailscale subnet only
 - Port 3000 (Grafana) — Tailscale subnet only
-- Port 8200 (Vault) — Tailscale subnet only
+- Port 8200 (OpenBao) — Tailscale subnet only
 - Port 8085 (Trino) — Tailscale subnet only
 
 SSH access via Tailscale or firewall-restricted port 22. No public-facing services.
@@ -168,7 +171,7 @@ SSH access via Tailscale or firewall-restricted port 22. No public-facing servic
 
 - **GlusterFS replica=3**: any single node can fail; reads/writes continue from
   the other two nodes. All stateful service volumes (`postgres-data`, `redis-data`,
-  `vault-data`, `seaweedfs-*`) are backed by GlusterFS.
+  `openbao-data`, `seaweedfs-*`) are backed by GlusterFS.
 - **PostgreSQL and Redis**: single replica. GlusterFS protects against node failure
   (data survives); the services restart on a surviving node within minutes.
 - **Airflow workers**: global service — automatically replaced on surviving nodes.
@@ -186,8 +189,8 @@ docker node update --label-add nodename=node3 <node3-id>
 
 # 3. Deploy in dependency order
 docker stack deploy -c infra/docker-stack/compose/databases.yaml data-platform
-docker stack deploy -c infra/docker-stack/compose/secrets.yaml data-platform
-# → run vault operator init + unseal (see docs/vault_setup.md)
+docker stack deploy -c infra/docker-stack/compose/openbao.yaml data-platform
+# → run: bao operator init + unseal (see docs/openbao_setup.md)
 docker stack deploy -c infra/docker-stack/compose/storage.yaml data-platform
 docker stack deploy -c infra/docker-stack/compose/airflow-init.yaml data-platform
 # → wait for airflow-init to complete
@@ -197,7 +200,7 @@ docker stack deploy -c infra/docker-stack/compose/streaming.yaml data-platform
 docker stack deploy -c infra/docker-stack/compose/monitor.yaml data-platform
 ```
 
-See `docs/vault_setup.md` and `docs/seaweedfs_setup.md` for bootstrap procedures.
+See `docs/openbao_setup.md` and `docs/seaweedfs_setup.md` for bootstrap procedures.
 
 ---
 
@@ -282,10 +285,10 @@ Each contract (`data-contracts/*_contract.yaml`) defines:
 Quality and contract tooling is packaged as installable Airflow providers under
 `airflow/dags/plugins/`:
 
-| Provider package         | Operator          | Purpose                                |
-|--------------------------|-------------------|----------------------------------------|
-| `airflow-provider-odcs`  | `ODCSOperator`    | Reads ODCS contract, runs SodaCL check |
-| `airflow-provider-soda`  | `SodaScanOperator`| Runs a Soda scan against a data source |
+| Provider package        | Operator           | Purpose                                |
+|-------------------------|--------------------|----------------------------------------|
+| `airflow-provider-odcs` | `ODCSOperator`     | Reads ODCS contract, runs SodaCL check |
+| `airflow-provider-soda` | `SodaScanOperator` | Runs a Soda scan against a data source |
 
 Both are currently placeholders (`NotImplementedError`); implement by installing the
 packages from their `pyproject.toml` and wiring them into DAGs.
@@ -306,9 +309,10 @@ ODCSOperator (airflow-provider-odcs)
 
 ## 8. Secrets Management
 
-All credentials are stored in **HashiCorp Vault** (KV v2 secrets engine).
+All credentials are stored in **OpenBao** (KV v2 secrets engine, MPL 2.0 licensed fork of Vault).
+HashiCorp Vault is kept as a drop-in alternative — both expose the same API.
 
-### Vault path layout
+### Secret path layout
 
 ```
 secret/airflow/config/fernet-key
@@ -321,19 +325,20 @@ secret/airflow/variables/<key>
 
 ### How it works in Docker Swarm
 
-1. Vault token stored as Docker secret `vault_airflow_token`
-2. `airflow-entrypoint.sh` reads it: `export VAULT_TOKEN=$(cat /run/secrets/vault_airflow_token)`
-3. Airflow `VaultBackend` uses the token to resolve connections, variables, and config at runtime
-4. Infrastructure secrets (`_SECRET` env vars) are resolved once at container startup
-5. DAG connections and variables are resolved on demand — no restart needed after rotation
+1. AppRole `role_id` stored as Docker secret `openbao_airflow_role_id`
+2. AppRole `secret_id` stored as Docker secret `openbao_airflow_secret_id`
+3. `airflow-entrypoint.sh` reads both and exports them as env vars
+4. Airflow `VaultBackend` uses AppRole auth to fetch tokens (1h TTL, auto-renewed)
+5. Infrastructure secrets (`_SECRET` env vars) are resolved once at container startup
+6. DAG connections and variables are resolved on demand — no restart needed after rotation
 
 ### How it works in Kubernetes
 
 1. Vault token stored as K8s Secret `vault-airflow-token`
 2. Injected into Airflow pods via `extraEnvFrom.secretRef`
-3. Same `VaultBackend` configuration as Swarm
+3. Same `VaultBackend` configuration as Swarm (K8s stack still targets HashiCorp Vault)
 
-See `docs/airflow_secrets_management.md` for the full bootstrap and rotation procedures.
+See `docs/openbao_setup.md` for the full bootstrap and rotation procedures.
 
 ---
 
@@ -360,7 +365,7 @@ GlusterFS replica=3 at `/mnt/gluster` provides HA for service volumes:
 |--------------------|---------------------------------|---------------------------|
 | `postgres-data`    | `/mnt/gluster/postgres-data`    | PostgreSQL data dir       |
 | `redis-data`       | `/mnt/gluster/redis-data`       | Redis AOF + RDB           |
-| `vault-data`       | `/mnt/gluster/vault-data`       | Vault file storage        |
+| `openbao-data`     | `/mnt/gluster/openbao-data`     | OpenBao file storage      |
 | `seaweedfs-master` | `/mnt/gluster/seaweedfs-master` | SeaweedFS master metadata |
 | `seaweedfs-volume` | `/mnt/gluster/seaweedfs-volume` | SeaweedFS volume data     |
 | `clickhouse-data`  | `/mnt/gluster/clickhouse-data`  | ClickHouse table data     |
@@ -381,14 +386,14 @@ gluster volume set pg-data storage.batch-fsync-delay-usec 0
 
 ### Prometheus scrape targets
 
-| Exporter          | Target                      | Metrics                             |
-|-------------------|-----------------------------|-------------------------------------|
-| statsd-exporter   | `statsd-exporter:9102`      | Airflow DAG/task/pool metrics       |
-| postgres-exporter | `postgres-exporter:9187`    | PostgreSQL connection, query stats  |
-| redis-exporter    | `redis-exporter:9121`       | Redis memory, keyspace stats        |
-| node-exporter     | `<node-ip>:9100`            | CPU, memory, disk, network per node |
-| Vault native      | `vault:8200/v1/sys/metrics` | Vault request latency, token counts |
-| SeaweedFS         | `seaweedfs-master:9333`     | Object counts, volume capacity      |
+| Exporter          | Target                        | Metrics                               |
+|-------------------|-------------------------------|---------------------------------------|
+| statsd-exporter   | `statsd-exporter:9102`        | Airflow DAG/task/pool metrics         |
+| postgres-exporter | `postgres-exporter:9187`      | PostgreSQL connection, query stats    |
+| redis-exporter    | `redis-exporter:9121`         | Redis memory, keyspace stats          |
+| node-exporter     | `<node-ip>:9100`              | CPU, memory, disk, network per node   |
+| OpenBao native    | `openbao:8200/v1/sys/metrics` | OpenBao request latency, token counts |
+| SeaweedFS         | `seaweedfs-master:9333`       | Object counts, volume capacity        |
 
 ### Key Grafana dashboards
 
@@ -406,7 +411,7 @@ gluster volume set pg-data storage.batch-fsync-delay-usec 0
 | Scheduler not heartbeating | `airflow_scheduler_heartbeat < 1` for 5m     | critical |
 | Queue depth high           | `airflow_executor_queued_tasks > 50` for 10m | warning  |
 | Disk usage high            | Filesystem > 80% full                        | warning  |
-| Vault sealed               | Vault health check fails                     | critical |
+| OpenBao sealed             | OpenBao health check fails                   | critical |
 
 ---
 
@@ -419,7 +424,7 @@ gluster volume set pg-data storage.batch-fsync-delay-usec 0
 3. Install GlusterFS and configure the replicated volume (see `ansible/deploy-databases.yml`)
 4. Label nodes: `docker node update --label-add ...`
 5. Deploy stacks in order (see Section 4)
-6. Bootstrap Vault: `vault operator init` → unseal → write secrets (see `docs/vault_setup.md`)
+6. Bootstrap OpenBao: `bao operator init` → unseal → write secrets (see `docs/openbao_setup.md`)
 7. Create SeaweedFS buckets (see `docs/seaweedfs_setup.md`)
 8. Create Airflow admin user via `airflow-init` stack
 
@@ -433,10 +438,10 @@ docker service update --image <new-image> data-platform_airflow-apiserver
 docker stack deploy -c infra/docker-stack/compose/airflow.yaml data-platform
 ```
 
-### Vault unseal after restart
+### OpenBao unseal after restart
 
 ```bash
-docker exec -it $(docker ps -q -f name=data-platform_vault) vault operator unseal
+docker exec -it $(docker ps -q -f name=data-platform_openbao) bao operator unseal
 # Run 3 times with different keys
 ```
 
@@ -444,12 +449,12 @@ docker exec -it $(docker ps -q -f name=data-platform_vault) vault operator unsea
 
 **Single worker node failure** (node2 or node3):
 - Swarm automatically reschedules global services (node-exporter, git-sync, SeaweedFS volume)
-- Stateful services (PostgreSQL, Redis, Vault) are pinned to node1 — unaffected
+- Stateful services (PostgreSQL, Redis, OpenBao) are pinned to node1 — unaffected
 - Airflow workers on the failed node are re-scheduled on remaining nodes automatically
 - RTO: ~1–2 minutes
 
 **Node1 failure (stateful node)**:
-- PostgreSQL, Redis, Vault, SeaweedFS master/filer become unavailable
+- PostgreSQL, Redis, OpenBao, SeaweedFS master/filer become unavailable
 - GlusterFS data is intact on node2 and node3
 - Manually update Swarm placement constraints to float services to node2:
   ```bash
@@ -461,8 +466,8 @@ docker exec -it $(docker ps -q -f name=data-platform_vault) vault operator unsea
 ### Rotate a secret
 
 ```bash
-# Update value in Vault
-vault kv put secret/airflow/connections/my_postgres value="postgresql://user:newpass@host:5432/db"
+# Update value in OpenBao
+bao kv put secret/airflow/connections/my_postgres value="postgresql://user:newpass@host:5432/db"
 
 # DAG connections: no restart needed — next task access picks up the new value.
 # Infrastructure secrets (_SECRET vars): restart the affected service.

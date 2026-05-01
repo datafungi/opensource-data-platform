@@ -1,20 +1,22 @@
 services:
-  vault:
-    image: hashicorp/vault:1.19.0
+  openbao:
+    image: openbao/openbao:2.5
     # Dev mode: in-memory storage, auto-unsealed, root token = "root".
     # DO NOT use dev mode in production — data is lost on restart.
-    command: vault server -dev
+    command: bao server -dev
     cap_add:
       - IPC_LOCK   # prevents secrets from being swapped to disk
     environment:
       VAULT_DEV_ROOT_TOKEN_ID: root
       VAULT_DEV_LISTEN_ADDRESS: 0.0.0.0:8200
+      VAULT_ADDR: http://127.0.0.1:8200
+      SKIP_SETCAP: "true"
     ports:
       - "8200:8200"
     networks:
       - data-platform-dev
     healthcheck:
-      test: ["CMD", "vault", "status"]
+      test: ["CMD", "bao", "status"]
       interval: 10s
       timeout: 5s
       retries: 5

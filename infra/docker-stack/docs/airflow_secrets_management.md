@@ -1,7 +1,7 @@
 # Airflow Secrets Management
 
 Airflow resolves connections, variables, and configuration values at runtime from
-**HashiCorp Vault** (KV v2 secrets engine). No credentials are stored in environment
+**OpenBao** (KV v2 secrets engine, MPL 2.0). No credentials are stored in environment
 variables or Docker configs.
 
 ---
@@ -10,8 +10,9 @@ variables or Docker configs.
 
 ```
 Airflow container
-  └── reads /run/secrets/vault_airflow_token  (Docker secret)
-        └── authenticates to Vault (http://vault:8200, token auth)
+  ├── reads /run/secrets/openbao_airflow_role_id    (Docker secret)
+  └── reads /run/secrets/openbao_airflow_secret_id  (Docker secret)
+        └── authenticates to OpenBao (http://openbao:8200, AppRole auth)
               ├── secret/airflow/config/*       → fernet key, DB conn, etc.
               ├── secret/airflow/connections/*  → Airflow Connection URIs
               └── secret/airflow/variables/*    → Airflow Variable values
@@ -21,59 +22,65 @@ Airflow container
 
 ## Vault Secret Paths (KV v2)
 
-| Vault path | Airflow config key |
-|---|---|
-| `secret/airflow/config/fernet-key` | `AIRFLOW__CORE__FERNET_KEY` |
-| `secret/airflow/config/api-secret-key` | `AIRFLOW__API__SECRET_KEY` |
-| `secret/airflow/config/sql-alchemy-conn` | `AIRFLOW__DATABASE__SQL_ALCHEMY_CONN` |
-| `secret/airflow/config/broker-url` | `AIRFLOW__CELERY__BROKER_URL` |
-| `secret/airflow/config/result-backend` | `AIRFLOW__CELERY__RESULT_BACKEND` |
-| `secret/airflow/connections/seaweedfs_logs` | S3-compatible remote log connection |
-| `secret/airflow/connections/<conn_id>` | Any Airflow Connection |
-| `secret/airflow/variables/<key>` | Any Airflow Variable |
+| Vault path                                  | Airflow config key                    |
+|---------------------------------------------|---------------------------------------|
+| `secret/airflow/config/fernet-key`          | `AIRFLOW__CORE__FERNET_KEY`           |
+| `secret/airflow/config/api-secret-key`      | `AIRFLOW__API__SECRET_KEY`            |
+| `secret/airflow/config/sql-alchemy-conn`    | `AIRFLOW__DATABASE__SQL_ALCHEMY_CONN` |
+| `secret/airflow/config/broker-url`          | `AIRFLOW__CELERY__BROKER_URL`         |
+| `secret/airflow/config/result-backend`      | `AIRFLOW__CELERY__RESULT_BACKEND`     |
+| `secret/airflow/connections/seaweedfs_logs` | S3-compatible remote log connection   |
+| `secret/airflow/connections/<conn_id>`      | Any Airflow Connection                |
+| `secret/airflow/variables/<key>`            | Any Airflow Variable                  |
 
 ---
 
 ## Bootstrap (first deploy)
 
+See `docs/openbao_setup.md` for the full procedure. The abbreviated steps are:
+
 ```bash
-# 1. Initialise Vault (run once after vault service is healthy)
-docker exec -it $(docker ps -q -f name=vault) vault operator init
+# 1. Initialise OpenBao (run once after the service is healthy)
+docker exec -it $(docker ps -q -f name=data-platform_openbao) bao operator init
 # Save the 5 unseal keys and root token — they cannot be recovered.
 
-# 2. Unseal Vault (required after every Vault restart — use 3 of the 5 keys)
-docker exec -it $(docker ps -q -f name=vault) vault operator unseal   # repeat 3x
+# 2. Unseal OpenBao (required after every restart — use 3 of the 5 keys)
+docker exec -it $(docker ps -q -f name=data-platform_openbao) bao operator unseal  # repeat 3x
 
 # 3. Enable the KV v2 secrets engine
-vault secrets enable -path=secret kv-v2
+bao secrets enable -path=secret kv-v2
 
 # 4. Create an Airflow read-only policy
-vault policy write airflow-read - <<'EOF'
+bao policy write airflow-read - <<'EOF'
 path "secret/data/airflow/*" {
   capabilities = ["read"]
 }
 EOF
 
-# 5. Create a token bound to that policy (1-year TTL; renew before expiry)
-AIRFLOW_TOKEN=$(vault token create \
-  -policy=airflow-read -no-default-policy -ttl=8760h \
-  -format=json | jq -r '.auth.client_token')
+# 5. Enable AppRole and create the Airflow role
+bao auth enable approle
+bao write auth/approle/role/airflow \
+  policies=airflow-read token_ttl=1h token_max_ttl=4h \
+  token_no_default_policy=true secret_id_ttl=0
 
-# 6. Store the token as a Docker secret
-echo -n "$AIRFLOW_TOKEN" | docker secret create vault_airflow_token -
+# 6. Store the AppRole credentials as Docker secrets
+ROLE_ID=$(bao read -field=role_id auth/approle/role/airflow/role-id)
+SECRET_ID=$(bao write -f -field=secret_id auth/approle/role/airflow/secret-id)
+echo -n "$ROLE_ID"   | docker secret create openbao_airflow_role_id -
+echo -n "$SECRET_ID" | docker secret create openbao_airflow_secret_id -
 
 # 7. Write all required infrastructure secrets
-vault kv put secret/airflow/config/fernet-key \
+bao kv put secret/airflow/config/fernet-key \
   value="$(python3 -c 'from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())')"
-vault kv put secret/airflow/config/api-secret-key   value="$(openssl rand -hex 32)"
-vault kv put secret/airflow/config/sql-alchemy-conn \
+bao kv put secret/airflow/config/api-secret-key   value="$(openssl rand -hex 32)"
+bao kv put secret/airflow/config/sql-alchemy-conn \
   value="postgresql+psycopg2://airflow:<pw>@postgres:5432/airflow"
-vault kv put secret/airflow/config/broker-url       value="redis://:@redis:6379/0"
-vault kv put secret/airflow/config/result-backend \
+bao kv put secret/airflow/config/broker-url       value="redis://:@redis:6379/0"
+bao kv put secret/airflow/config/result-backend \
   value="db+postgresql://airflow:<pw>@postgres:5432/airflow"
 
 # 8. Write the SeaweedFS remote-logging connection
-vault kv put secret/airflow/connections/seaweedfs_logs \
+bao kv put secret/airflow/connections/seaweedfs_logs \
   value="aws://<key>:<secret>@seaweedfs:8333?endpoint_url=http%3A%2F%2Fseaweedfs%3A8333&region_name=us-east-1"
 ```
 
@@ -89,8 +96,10 @@ AIRFLOW__SECRETS__BACKEND_KWARGS: >-
   {"connections_path": "airflow/connections",
    "variables_path": "airflow/variables",
    "config_path": "airflow/config",
-   "url": "http://vault:8200",
-   "auth_type": "token"}
+   "url": "http://openbao:8200",
+   "auth_type": "approle",
+   "role_id_env_var":   "AIRFLOW__SECRETS__VAULT_ROLE_ID",
+   "secret_id_env_var": "AIRFLOW__SECRETS__VAULT_SECRET_ID"}
 
 # Infrastructure secrets resolved via the backend at container startup:
 AIRFLOW__CORE__FERNET_KEY_SECRET:           fernet-key
@@ -100,8 +109,9 @@ AIRFLOW__CELERY__BROKER_URL_SECRET:         broker-url
 AIRFLOW__CELERY__RESULT_BACKEND_SECRET:     result-backend
 ```
 
-`VAULT_TOKEN` is injected by `airflow-entrypoint.sh` from the `vault_airflow_token`
-Docker secret at `/run/secrets/vault_airflow_token`.
+`AIRFLOW__SECRETS__VAULT_ROLE_ID` and `AIRFLOW__SECRETS__VAULT_SECRET_ID` are injected
+by `airflow-entrypoint.sh` from Docker secrets at `/run/secrets/openbao_airflow_role_id`
+and `/run/secrets/openbao_airflow_secret_id`.
 
 ---
 
@@ -125,7 +135,7 @@ Vault CLI to manage secrets that should come from Vault.
 ## Adding a New Connection
 
 ```bash
-vault kv put secret/airflow/connections/my_postgres \
+bao kv put secret/airflow/connections/my_postgres \
   value="postgresql://user:pass@db-host:5432/mydb"
 ```
 
@@ -143,11 +153,11 @@ These are resolved **once at container startup**. A service restart is required 
 DB values unreadable:
 
 ```bash
-OLD_KEY=$(vault kv get -field=value secret/airflow/config/fernet-key)
+OLD_KEY=$(bao kv get -field=value secret/airflow/config/fernet-key)
 NEW_KEY=$(python3 -c 'from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())')
 
 # Step 1: set transition key (new,old) and restart all services
-vault kv put secret/airflow/config/fernet-key value="${NEW_KEY},${OLD_KEY}"
+bao kv put secret/airflow/config/fernet-key value="${NEW_KEY},${OLD_KEY}"
 docker service update --force data-platform_airflow-apiserver
 docker service update --force data-platform_airflow-scheduler
 docker service update --force data-platform_airflow-worker
@@ -157,41 +167,43 @@ docker exec $(docker ps -q -f name=data-platform_airflow-worker | head -1) \
   airflow rotate-fernet-key
 
 # Step 3: set only the new key and restart again
-vault kv put secret/airflow/config/fernet-key value="$NEW_KEY"
+bao kv put secret/airflow/config/fernet-key value="$NEW_KEY"
 docker service update --force data-platform_airflow-apiserver
 docker service update --force data-platform_airflow-scheduler
 docker service update --force data-platform_airflow-worker
 ```
 
-### Vault token rotation
+### AppRole secret_id rotation
+
+Rotate the `secret_id` periodically (recommended: every 90 days) or after a suspected
+compromise. The `role_id` rarely needs rotation.
 
 ```bash
-NEW_TOKEN=$(vault token create \
-  -policy=airflow-read -no-default-policy -ttl=8760h \
-  -format=json | jq -r '.auth.client_token')
+NEW_SECRET_ID=$(bao write -f -field=secret_id auth/approle/role/airflow/secret-id)
 
 # Docker Swarm requires remove + re-create for secrets
-echo -n "$NEW_TOKEN" | docker secret create vault_airflow_token_v2 -
+echo -n "$NEW_SECRET_ID" | docker secret create openbao_airflow_secret_id_v2 -
 for svc in airflow-apiserver airflow-scheduler airflow-dag-processor \
            airflow-triggerer airflow-worker airflow-init; do
   docker service update \
-    --secret-rm vault_airflow_token \
-    --secret-add source=vault_airflow_token_v2,target=vault_airflow_token \
+    --secret-rm openbao_airflow_secret_id \
+    --secret-add source=openbao_airflow_secret_id_v2,target=openbao_airflow_secret_id \
     data-platform_${svc}
 done
-docker secret rm vault_airflow_token
-docker secret rename vault_airflow_token_v2 vault_airflow_token
+docker secret rm openbao_airflow_secret_id
+docker secret rename openbao_airflow_secret_id_v2 openbao_airflow_secret_id
 ```
 
 ---
 
 ## Secret Scope Per Service
 
-| Secret | API server | Scheduler | DAG processor | Worker | Triggerer | git-sync |
-|---|---|---|---|---|---|---|
-| `vault_airflow_token` | ✅ | ✅ | ✅ | ✅ | ✅ | — |
-| `gitsync_ssh_key` | — | — | — | — | — | ✅ |
-| `gitsync_known_hosts` (config) | — | — | — | — | — | ✅ |
+| Secret                         | API server | Scheduler | DAG processor | Worker | Triggerer | git-sync |
+|--------------------------------|------------|-----------|---------------|--------|-----------|----------|
+| `openbao_airflow_role_id`      | ✅          | ✅         | ✅             | ✅      | ✅         | —        |
+| `openbao_airflow_secret_id`    | ✅          | ✅         | ✅             | ✅      | ✅         | —        |
+| `gitsync_ssh_key`              | —          | —         | —             | —      | —         | ✅        |
+| `gitsync_known_hosts` (config) | —          | —         | —             | —      | —         | ✅        |
 
 ---
 

@@ -1,11 +1,12 @@
-AIRFLOW_COMPOSE    := infra/dev/compose/airflow.lite.yaml
-CLICKHOUSE_COMPOSE := infra/dev/compose/clickhouse.yaml
-SEAWEEDFS_COMPOSE  := infra/dev/compose/seaweedfs.yaml
-VAULT_COMPOSE      := infra/dev/compose/vault.yaml
-TRINO_COMPOSE      := infra/dev/compose/trino.yaml
-SPARK_COMPOSE      := infra/dev/compose/spark.yaml
-KAFKA_COMPOSE      := infra/dev/compose/kafka.yaml
-FLINK_COMPOSE      := infra/dev/compose/flink.yaml
+AIRFLOW_COMPOSE         := infra/dev/compose/airflow.lite.yaml
+CLICKHOUSE_COMPOSE      := infra/dev/compose/clickhouse.yaml
+SEAWEEDFS_COMPOSE       := infra/dev/compose/seaweedfs.yaml
+HASHICORP_VAULT_COMPOSE := infra/dev/compose/hashicorp-vault.yaml
+OPENBAO_COMPOSE         := infra/dev/compose/openbao.yaml
+TRINO_COMPOSE           := infra/dev/compose/trino.yaml
+SPARK_COMPOSE           := infra/dev/compose/spark.yaml
+KAFKA_COMPOSE           := infra/dev/compose/kafka.yaml
+FLINK_COMPOSE           := infra/dev/compose/flink.yaml
 
 AIRFLOW_IMAGE := localairflow:latest
 DEV_NETWORK   := data-platform-dev
@@ -13,13 +14,16 @@ DEV_NETWORK   := data-platform-dev
 COMPOSE_FILES_airflow    := $(AIRFLOW_COMPOSE)
 COMPOSE_FILES_clickhouse := $(CLICKHOUSE_COMPOSE)
 COMPOSE_FILES_seaweedfs  := $(SEAWEEDFS_COMPOSE)
-COMPOSE_FILES_vault      := $(VAULT_COMPOSE)
+# vault and openbao are mutually exclusive — both bind port 8200. Use one or the other.
+COMPOSE_FILES_vault      := $(HASHICORP_VAULT_COMPOSE)
+COMPOSE_FILES_openbao    := $(OPENBAO_COMPOSE)
 COMPOSE_FILES_trino      := $(TRINO_COMPOSE)
 COMPOSE_FILES_spark      := $(SPARK_COMPOSE)
 COMPOSE_FILES_kafka      := $(KAFKA_COMPOSE)
 COMPOSE_FILES_flink      := $(KAFKA_COMPOSE) $(FLINK_COMPOSE)
+# ALL uses OpenBao as the default secrets manager. Swap for $(HASHICORP_VAULT_COMPOSE) if preferred.
 ALL_COMPOSE_FILES        := $(AIRFLOW_COMPOSE) $(CLICKHOUSE_COMPOSE) $(SEAWEEDFS_COMPOSE) \
-                            $(VAULT_COMPOSE) $(TRINO_COMPOSE) $(SPARK_COMPOSE)
+                            $(OPENBAO_COMPOSE) $(TRINO_COMPOSE) $(SPARK_COMPOSE)
 
 # Support both `make up component=foo` (variable override) and `make up foo` (goal-based)
 ifdef component
@@ -42,7 +46,7 @@ endif
 
 COMPOSE = docker compose --project-directory . $(foreach f,$(SELECTED_FILES),-f $(f))
 
-.PHONY: build up down clean vault-init seaweedfs-init kafka-init
+.PHONY: build up down clean vault-init openbao-init seaweedfs-init kafka-init
 
 build:
 	docker build -t $(AIRFLOW_IMAGE) -f infra/images/airflow.Dockerfile .
@@ -57,10 +61,10 @@ down:
 clean:
 	docker image prune -f
 
-# Bootstrap Vault dev instance with the secrets Airflow expects.
+# Bootstrap HashiCorp Vault dev instance with the secrets Airflow expects.
 # Requires: make up vault (Vault must be running in dev mode, root token = "root")
 vault-init:
-	@echo "Seeding Vault dev instance..."
+	@echo "Seeding HashiCorp Vault dev instance..."
 	@VAULT_ADDR=http://localhost:8200 VAULT_TOKEN=root \
 	  vault secrets enable -path=secret kv-v2 2>/dev/null || true
 	@VAULT_ADDR=http://localhost:8200 VAULT_TOKEN=root \
@@ -79,7 +83,31 @@ vault-init:
 	@VAULT_ADDR=http://localhost:8200 VAULT_TOKEN=root \
 	  vault kv put secret/airflow/connections/seaweedfs_logs \
 	    value="aws://seaweedadmin:seaweedadmin@seaweedfs:8333?endpoint_url=http%3A%2F%2Fseaweedfs%3A8333&region_name=us-east-1"
-	@echo "Vault seeded. Access at http://localhost:8200 (token: root)"
+	@echo "HashiCorp Vault seeded. Access at http://localhost:8200 (token: root)"
+
+# Bootstrap OpenBao dev instance with the secrets Airflow expects.
+# Requires: make up openbao (OpenBao must be running in dev mode, root token = "root")
+openbao-init:
+	@echo "Seeding OpenBao dev instance..."
+	@VAULT_ADDR=http://localhost:8200 VAULT_TOKEN=root \
+	  bao secrets enable -path=secret kv-v2 2>/dev/null || true
+	@VAULT_ADDR=http://localhost:8200 VAULT_TOKEN=root \
+	  bao kv put secret/airflow/config/fernet-key \
+	    value="$$(python3 -c 'from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())')"
+	@VAULT_ADDR=http://localhost:8200 VAULT_TOKEN=root \
+	  bao kv put secret/airflow/config/api-secret-key value="$$(openssl rand -hex 32)"
+	@VAULT_ADDR=http://localhost:8200 VAULT_TOKEN=root \
+	  bao kv put secret/airflow/config/sql-alchemy-conn \
+	    value="postgresql+psycopg2://airflow:airflow@postgres:5432/airflow"
+	@VAULT_ADDR=http://localhost:8200 VAULT_TOKEN=root \
+	  bao kv put secret/airflow/config/broker-url value="redis://:@redis:6379/0"
+	@VAULT_ADDR=http://localhost:8200 VAULT_TOKEN=root \
+	  bao kv put secret/airflow/config/result-backend \
+	    value="db+postgresql://airflow:airflow@postgres:5432/airflow"
+	@VAULT_ADDR=http://localhost:8200 VAULT_TOKEN=root \
+	  bao kv put secret/airflow/connections/seaweedfs_logs \
+	    value="aws://seaweedadmin:seaweedadmin@seaweedfs:8333?endpoint_url=http%3A%2F%2Fseaweedfs%3A8333&region_name=us-east-1"
+	@echo "OpenBao seeded. Access at http://localhost:8200 (token: root)"
 
 # Create required S3 buckets in SeaweedFS.
 # Requires: make up seaweedfs (SeaweedFS must be running)

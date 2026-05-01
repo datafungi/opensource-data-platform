@@ -52,7 +52,7 @@ flowchart TB
     end
 
     subgraph Secrets["Secrets"]
-        Vault["HashiCorp Vault"]
+        OB["OpenBao"]
     end
 
     Airflow --> PG
@@ -72,30 +72,10 @@ flowchart TB
     Flink -->|"sinks"| CH
     Airflow -->|"lineage events"| OL --> Marquez
     Airflow -->|"StatsD"| Prom --> Graf
-    Vault -->|"secrets"| Airflow
+    OB -->|"secrets"| Airflow
 ```
 
 ---
-
-## Data Flow
-
-```mermaid
-flowchart LR
-    Sources["Source Systems"] -->|"Airflow DAG"| Raw["ClickHouse\nraw layer"]
-    Raw -->|"dbt staging"| Staged["ClickHouse\nstaging views"]
-    Staged -->|"dbt intermediate"| Enriched["ClickHouse\nintermediate views"]
-    Enriched -->|"dbt marts"| Marts["ClickHouse\nfct_orders ReplacingMergeTree"]
-    Marts -->|"quality gate"| QG{"Soda scan\n+ ODCS validation"}
-    QG -->|"pass"| Query["Trino\nfederated query"]
-    QG -->|"fail"| Alert["Airflow task failure\n(DAG turns red)"]
-    Query --> BI["Consumers\n(BI tools, APIs)"]
-    Enriched -->|"Spark job"| Iceberg["Iceberg tables\n(SeaweedFS)"]
-    Iceberg --> Query
-    Airflow -->|"OpenLineage events"| Marquez["Marquez lineage"]
-```
-
----
-
 ## Docker Swarm Topology (Production)
 
 ```mermaid
@@ -103,7 +83,7 @@ flowchart TB
     subgraph Node1["Node 1 — stateful"]
         PG2["PostgreSQL"]
         Redis2["Redis"]
-        Vault2["Vault"]
+        OB2["OpenBao"]
         SWM["SeaweedFS master\n+ filer + S3 GW"]
         Sched["Airflow\nScheduler"]
         SVol1["SeaweedFS\nvolume server"]
@@ -140,28 +120,28 @@ flowchart TB
 
 ## Stack
 
-| Function           | Tool                                 | License           |
-|--------------------|--------------------------------------|-------------------|
-| Orchestration      | Apache Airflow 3.2                   | Apache 2.0        |
-| Relational DB      | PostgreSQL 17                        | PostgreSQL        |
-| Broker             | Redis 8                              | BSD               |
-| Analytics DB       | ClickHouse                           | Apache 2.0        |
-| Object storage     | SeaweedFS                            | Apache 2.0        |
-| Secrets            | HashiCorp Vault                      | BSL 1.1 / MPL 2.0 |
-| SQL transforms     | dbt-core + dbt-clickhouse + cosmos   | Apache 2.0        |
-| Federated SQL      | Trino                                | Apache 2.0        |
-| Batch compute      | Apache Spark                         | Apache 2.0        |
-| Stream ingest      | Apache Kafka (KRaft)                 | Apache 2.0        |
-| Stream compute     | Apache Flink                         | Apache 2.0        |
-| Table format       | Apache Iceberg                       | Apache 2.0        |
-| Iceberg catalog    | Apache Polaris                       | Apache 2.0        |
-| Data quality       | Soda Core                            | Apache 2.0        |
-| Data contracts     | ODCS 3.1.0 + custom Airflow provider | Apache 2.0        |
-| Data lineage       | Marquez + OpenLineage                | Apache 2.0        |
-| Metrics            | Prometheus + Grafana                 | Apache 2.0        |
-| Distributed FS     | GlusterFS                            | LGPL v3           |
-| Prod orchestration | Docker Swarm                         | Apache 2.0        |
-| K8s orchestration  | k3s / kubeadm                        | Apache 2.0        |
+| Function           | Tool                                 | License    |
+|--------------------|--------------------------------------|------------|
+| Orchestration      | Apache Airflow 3.2                   | Apache 2.0 |
+| Relational DB      | PostgreSQL 17                        | PostgreSQL |
+| Broker             | Redis 8                              | BSD        |
+| Analytics DB       | ClickHouse                           | Apache 2.0 |
+| Object storage     | SeaweedFS                            | Apache 2.0 |
+| Secrets            | OpenBao                              | MPL 2.0    |
+| SQL transforms     | dbt-core + dbt-clickhouse + cosmos   | Apache 2.0 |
+| Federated SQL      | Trino                                | Apache 2.0 |
+| Batch compute      | Apache Spark                         | Apache 2.0 |
+| Stream ingest      | Apache Kafka (KRaft)                 | Apache 2.0 |
+| Stream compute     | Apache Flink                         | Apache 2.0 |
+| Table format       | Apache Iceberg                       | Apache 2.0 |
+| Iceberg catalog    | Apache Polaris                       | Apache 2.0 |
+| Data quality       | Soda Core                            | Apache 2.0 |
+| Data contracts     | ODCS 3.1.0 + custom Airflow provider | Apache 2.0 |
+| Data lineage       | Marquez + OpenLineage                | Apache 2.0 |
+| Metrics            | Prometheus + Grafana                 | Apache 2.0 |
+| Distributed FS     | GlusterFS                            | LGPL v3    |
+| Prod orchestration | Docker Swarm                         | Apache 2.0 |
+| K8s orchestration  | k3s / kubeadm                        | Apache 2.0 |
 
 ---
 
@@ -179,7 +159,8 @@ make up
 # Or start individual components
 make up airflow
 make up clickhouse
-make up vault
+make up openbao       # OpenBao (default secrets manager)
+make up vault         # HashiCorp Vault (alternative — shares port 8200, run one or the other)
 make up seaweedfs
 make up trino
 make up spark
@@ -187,28 +168,29 @@ make up kafka
 make up flink         # starts Kafka + Flink JobManager + TaskManager
 ```
 
-After starting Vault and SeaweedFS, seed them:
+After starting the secrets manager and SeaweedFS, seed them:
 
 ```bash
-make vault-init       # writes secrets Airflow needs to Vault dev instance
+make openbao-init     # writes secrets Airflow needs to OpenBao dev instance
+make vault-init       # alternative: seed HashiCorp Vault instead
 make seaweedfs-init   # creates airflow-logs, backups, iceberg-warehouse buckets
 make kafka-init       # creates default Kafka topics (raw-orders, flink-output)
 ```
 
 ### Service URLs
 
-| Service             | URL                   | Credentials       |
-|---------------------|-----------------------|-------------------|
-| Airflow UI          | http://localhost:8080 | airflow / airflow |
-| Flower (Celery)     | http://localhost:5555 | —                 |
-| Vault UI            | http://localhost:8200 | token: `root`     |
-| SeaweedFS filer UI  | http://localhost:8888 | —                 |
-| SeaweedFS S3 API    | http://localhost:8333 | see `.env`        |
-| Trino UI            | http://localhost:8085 | —                 |
-| Spark master UI     | http://localhost:8090 | —                 |
-| ClickHouse HTTP     | http://localhost:8123 | see `.env`        |
-| Kafka broker        | localhost:9092        | —                 |
-| Flink Web UI        | http://localhost:8082 | —                 |
+| Service            | URL                   | Credentials       |
+|--------------------|-----------------------|-------------------|
+| Airflow UI         | http://localhost:8080 | airflow / airflow |
+| Flower (Celery)    | http://localhost:5555 | —                 |
+| OpenBao / Vault UI | http://localhost:8200 | token: `root`     |
+| SeaweedFS filer UI | http://localhost:8888 | —                 |
+| SeaweedFS S3 API   | http://localhost:8333 | see `.env`        |
+| Trino UI           | http://localhost:8085 | —                 |
+| Spark master UI    | http://localhost:8090 | —                 |
+| ClickHouse HTTP    | http://localhost:8123 | see `.env`        |
+| Kafka broker       | localhost:9092        | —                 |
+| Flink Web UI       | http://localhost:8082 | —                 |
 
 ---
 
@@ -241,7 +223,8 @@ data-platform/
 │   │   ├── airflow.lite.yaml               # Airflow with LocalExecutor
 │   │   ├── clickhouse.yaml
 │   │   ├── seaweedfs.yaml                  # S3-compatible object store
-│   │   ├── vault.yaml                      # HashiCorp Vault (dev mode)
+│   │   ├── openbao.yaml                    # OpenBao (dev mode, default)
+│   │   ├── hashicorp-vault.yaml            # HashiCorp Vault (dev mode, alternative)
 │   │   ├── trino.yaml                      # Federated SQL engine
 │   │   ├── spark.yaml                      # Spark standalone cluster
 │   │   ├── kafka.yaml                      # Apache Kafka (KRaft mode)
@@ -251,11 +234,14 @@ data-platform/
 │   │   ├── compose/                        # Swarm stack compose files
 │   │   │   ├── airflow.yaml
 │   │   │   ├── databases.yaml              # PostgreSQL + Redis
-│   │   │   ├── secrets.yaml                # HashiCorp Vault
+│   │   │   ├── openbao.yaml                # OpenBao (default secrets manager)
+│   │   │   ├── hashicorp-vault.yaml        # HashiCorp Vault (alternative)
 │   │   │   ├── storage.yaml                # SeaweedFS
 │   │   │   ├── analytics.yaml              # ClickHouse + Trino
 │   │   │   ├── streaming.yaml              # Kafka + Flink
 │   │   │   └── monitor.yaml                # Prometheus + Grafana
+│   │   ├── config/                         # Server config files (uploaded as Docker configs)
+│   │   │   └── openbao.hcl
 │   │   └── docs/                           # Operational runbooks
 │   ├── images/
 │   │   ├── airflow.Dockerfile
@@ -311,7 +297,8 @@ and [`infra/docker-stack/docs/`](infra/docker-stack/docs/) for operational runbo
 ```bash
 # Deploy on a 3-node Swarm cluster
 docker stack deploy -c infra/docker-stack/compose/databases.yaml data-platform
-docker stack deploy -c infra/docker-stack/compose/secrets.yaml data-platform
+docker stack deploy -c infra/docker-stack/compose/openbao.yaml data-platform
+# → run: bao operator init + unseal (see infra/docker-stack/docs/openbao_setup.md)
 docker stack deploy -c infra/docker-stack/compose/storage.yaml data-platform
 docker stack deploy -c infra/docker-stack/compose/airflow.yaml data-platform
 docker stack deploy -c infra/docker-stack/compose/analytics.yaml data-platform
