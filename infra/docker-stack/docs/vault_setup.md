@@ -1,5 +1,9 @@
 # HashiCorp Vault — Setup and Operations
 
+> **Note:** OpenBao is now the default secrets manager for this platform.
+> See [`openbao_setup.md`](openbao_setup.md) for the recommended procedure.
+> This document is retained for teams that prefer HashiCorp Vault.
+
 Vault runs as a single-replica Docker Swarm service on node1 (the stateful node),
 with file storage backed by GlusterFS at `/mnt/gluster/vault-data`.
 
@@ -11,7 +15,7 @@ with file storage backed by GlusterFS at `/mnt/gluster/vault-data`.
 
 ```bash
 docker config create vault_config infra/docker-stack/config/vault.hcl
-docker stack deploy -c infra/docker-stack/compose/secrets.yaml data-platform
+docker stack deploy -c infra/docker-stack/compose/hashicorp-vault.yaml data-platform
 ```
 
 The Vault service starts in a **sealed** state. All dependent services (Airflow)

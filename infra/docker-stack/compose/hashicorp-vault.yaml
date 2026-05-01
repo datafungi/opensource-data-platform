@@ -1,6 +1,6 @@
 services:
   vault:
-    image: hashicorp/vault:1.19.0
+    image: hashicorp/vault:2.0
     # Production mode: file storage on GlusterFS, manually unsealed.
     # Run `vault operator init` then `vault operator unseal` (3x) after first deploy.
     # See docs/vault_setup.md for the full bootstrap procedure.
