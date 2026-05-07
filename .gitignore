@@ -15,6 +15,7 @@ wheels/
 # Local environment variables
 .env
 .env.*
+!.env.example
 
 # Log files
 logs/
