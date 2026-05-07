@@ -1,0 +1,55 @@
+dn: ou=People,dc=oss-data-platform,dc=local
+objectClass: organizationalUnit
+ou: People
+
+dn: ou=Groups,dc=oss-data-platform,dc=local
+objectClass: organizationalUnit
+ou: Groups
+
+dn: uid=alice,ou=People,dc=oss-data-platform,dc=local
+objectClass: inetOrgPerson
+objectClass: organizationalPerson
+objectClass: person
+objectClass: top
+cn: Alice Admin
+sn: Admin
+uid: alice
+mail: alice@oss-data-platform.local
+userPassword: alice-password
+
+dn: uid=bob,ou=People,dc=oss-data-platform,dc=local
+objectClass: inetOrgPerson
+objectClass: organizationalPerson
+objectClass: person
+objectClass: top
+cn: Bob Analyst
+sn: Analyst
+uid: bob
+mail: bob@oss-data-platform.local
+userPassword: bob-password
+
+dn: uid=carol,ou=People,dc=oss-data-platform,dc=local
+objectClass: inetOrgPerson
+objectClass: organizationalPerson
+objectClass: person
+objectClass: top
+cn: Carol Restricted
+sn: Restricted
+uid: carol
+mail: carol@oss-data-platform.local
+userPassword: carol-password
+
+dn: cn=trino_admin,ou=Groups,dc=oss-data-platform,dc=local
+objectClass: groupOfNames
+cn: trino_admin
+member: uid=alice,ou=People,dc=oss-data-platform,dc=local
+
+dn: cn=analyst,ou=Groups,dc=oss-data-platform,dc=local
+objectClass: groupOfNames
+cn: analyst
+member: uid=bob,ou=People,dc=oss-data-platform,dc=local
+
+dn: cn=pii_restricted,ou=Groups,dc=oss-data-platform,dc=local
+objectClass: groupOfNames
+cn: pii_restricted
+member: uid=carol,ou=People,dc=oss-data-platform,dc=local

@@ -1,0 +1,150 @@
+services:
+  openldap:
+    image: osixia/openldap:1.5.0
+    command: ["--copy-service", "--loglevel", "warning"]
+    environment:
+      LDAP_ORGANISATION: ${LDAP_ORGANISATION:-OSS Data Platform}
+      LDAP_DOMAIN: ${LDAP_DOMAIN:-oss-data-platform.local}
+      LDAP_BASE_DN: ${LDAP_BASE_DN:-dc=oss-data-platform,dc=local}
+      LDAP_ADMIN_PASSWORD: ${LDAP_ADMIN_PASSWORD:-admin}
+      LDAP_TLS: "true"
+      LDAP_TLS_VERIFY_CLIENT: never
+      LDAP_TLS_CRT_FILENAME: ldap.crt
+      LDAP_TLS_KEY_FILENAME: ldap.key
+      LDAP_TLS_CA_CRT_FILENAME: ca.crt
+    ports:
+      - "389:389"
+      - "636:636"
+    volumes:
+      - type: bind
+        source: ${PWD}/infra/dev/configs/ldap/bootstrap
+        target: /container/service/slapd/assets/config/bootstrap/ldif/custom
+        read_only: true
+      - type: bind
+        source: ${PWD}/infra/dev/configs/trino-security/certs
+        target: /container/service/slapd/assets/certs
+        read_only: true
+      - openldap-data:/var/lib/ldap
+      - openldap-config:/etc/ldap/slapd.d
+    networks:
+      - data-platform-dev
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "LDAPTLS_CACERT=/container/service/slapd/assets/certs/ca.crt ldapwhoami -x -H ldaps://localhost:636 -D \"cn=admin,${LDAP_BASE_DN:-dc=oss-data-platform,dc=local}\" -w \"${LDAP_ADMIN_PASSWORD:-admin}\" >/dev/null 2>&1",
+        ]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 40s
+    restart: unless-stopped
+
+  ranger-db:
+    image: apache/ranger-db:2.8.0
+    environment:
+      POSTGRES_PASSWORD: ${RANGER_DB_SUPERUSER_PASSWORD:-rangerR0cks!}
+      RANGER_DB_USER: ${RANGER_DB_USER:-rangeradmin}
+      RANGER_DB_PASSWORD: ${RANGER_DB_PASSWORD:-rangerR0cks!}
+    volumes:
+      - ranger-db-data:/var/lib/postgresql/data
+    networks:
+      - data-platform-dev
+    healthcheck:
+      test: ["CMD-SHELL", "su -c \"pg_isready -q\" postgres"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
+    restart: unless-stopped
+
+  ranger-solr:
+    image: apache/ranger-solr:2.8.0
+    command: ["solr-precreate", "ranger_audits", "/opt/solr/server/solr/configsets/ranger_audits/"]
+    volumes:
+      - ranger-solr-data:/var/solr
+    networks:
+      - data-platform-dev
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8983/solr/ranger_audits/admin/ping >/dev/null"]
+      interval: 20s
+      timeout: 10s
+      retries: 10
+      start_period: 40s
+    restart: unless-stopped
+
+  ranger-admin:
+    image: apache/ranger:2.8.0
+    environment:
+      POSTGRES_PASSWORD: ${RANGER_DB_SUPERUSER_PASSWORD:-rangerR0cks!}
+      RANGER_DB_USER: ${RANGER_DB_USER:-rangeradmin}
+      RANGER_DB_PASSWORD: ${RANGER_DB_PASSWORD:-rangerR0cks!}
+    ports:
+      - "6080:6080"
+    depends_on:
+      ranger-db:
+        condition: service_healthy
+      ranger-solr:
+        condition: service_healthy
+    networks:
+      - data-platform-dev
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:6080/login.jsp >/dev/null"]
+      interval: 20s
+      timeout: 10s
+      retries: 20
+      start_period: 120s
+    restart: unless-stopped
+
+  ranger-usersync:
+    profiles: ["usersync"]
+    build:
+      context: ${PWD}/infra/dev/configs/ranger/usersync
+      dockerfile: Dockerfile
+      args:
+        RANGER_VERSION: "2.8.0"
+    environment:
+      POLICY_MGR_URL: ${RANGER_POLICY_MGR_URL:-http://ranger-admin:6080}
+      SYNC_SOURCE: ldap
+      SYNC_INTERVAL: ${RANGER_USERSYNC_INTERVAL_MINUTES:-5}
+      SYNC_LDAP_URL: ${RANGER_USERSYNC_LDAP_URL:-ldaps://openldap:636}
+      SYNC_LDAP_BIND_DN: ${RANGER_USERSYNC_BIND_DN:-cn=admin,dc=oss-data-platform,dc=local}
+      SYNC_LDAP_BIND_PASSWORD: ${LDAP_ADMIN_PASSWORD:-admin}
+      SYNC_LDAP_SEARCH_BASE: ${RANGER_USERSYNC_SEARCH_BASE:-dc=oss-data-platform,dc=local}
+      SYNC_LDAP_USER_SEARCH_BASE: ${RANGER_USERSYNC_USER_SEARCH_BASE:-ou=People,dc=oss-data-platform,dc=local}
+      SYNC_LDAP_GROUP_SEARCH_BASE: ${RANGER_USERSYNC_GROUP_SEARCH_BASE:-ou=Groups,dc=oss-data-platform,dc=local}
+      SYNC_LDAP_USER_NAME_ATTRIBUTE: uid
+      SYNC_LDAP_USER_OBJECT_CLASS: inetOrgPerson
+      SYNC_LDAP_GROUP_OBJECT_CLASS: groupOfNames
+      SYNC_LDAP_GROUP_NAME_ATTRIBUTE: cn
+      SYNC_LDAP_GROUP_MEMBER_ATTRIBUTE_NAME: member
+      USERSYNC_CACERT_PATH: /etc/ranger/usersync/ca.crt
+    volumes:
+      - type: bind
+        source: ${PWD}/infra/dev/configs/ranger/usersync/install.properties.template
+        target: /opt/ranger/templates/install.properties.template
+        read_only: true
+      - type: bind
+        source: ${PWD}/infra/dev/configs/trino-security/certs/ca.crt
+        target: /etc/ranger/usersync/ca.crt
+        read_only: true
+      - ranger-usersync-data:/var/lib/ranger-usersync
+    depends_on:
+      ranger-admin:
+        condition: service_healthy
+      openldap:
+        condition: service_healthy
+    networks:
+      - data-platform-dev
+    restart: unless-stopped
+
+networks:
+  data-platform-dev:
+    external: true
+
+volumes:
+  openldap-data:
+  openldap-config:
+  ranger-db-data:
+  ranger-solr-data:
+  ranger-usersync-data:
