@@ -9,6 +9,8 @@ POLARIS_COMPOSE         := infra/dev/compose/polaris.yaml
 SPARK_COMPOSE           := infra/dev/compose/spark.yaml
 KAFKA_COMPOSE           := infra/dev/compose/kafka.yaml
 FLINK_COMPOSE           := infra/dev/compose/flink.yaml
+REDPANDA_COMPOSE        := infra/dev/compose/redpanda.yaml
+DEBEZIUM_COMPOSE        := infra/dev/compose/debezium.yaml
 ENV_FILE                := $(if $(wildcard .env),--env-file .env,)
 
 AIRFLOW_IMAGE := localairflow:latest
@@ -26,6 +28,8 @@ COMPOSE_FILES_polaris    := $(POLARIS_COMPOSE)
 COMPOSE_FILES_spark      := $(SPARK_COMPOSE)
 COMPOSE_FILES_kafka      := $(KAFKA_COMPOSE)
 COMPOSE_FILES_flink      := $(KAFKA_COMPOSE) $(FLINK_COMPOSE)
+COMPOSE_FILES_redpanda   := $(REDPANDA_COMPOSE)
+COMPOSE_FILES_debezium   := $(REDPANDA_COMPOSE) $(DEBEZIUM_COMPOSE)
 # ALL uses OpenBao as the default secrets manager. Swap for $(HASHICORP_VAULT_COMPOSE) if preferred.
 ALL_COMPOSE_FILES        := $(AIRFLOW_COMPOSE) $(CLICKHOUSE_COMPOSE) $(SEAWEEDFS_COMPOSE) \
                             $(OPENBAO_COMPOSE) $(RANGER_COMPOSE) $(POLARIS_COMPOSE) \
@@ -52,7 +56,7 @@ endif
 
 COMPOSE = docker compose --project-directory . $(ENV_FILE) $(foreach f,$(SELECTED_FILES),-f $(f))
 
-.PHONY: build up down clean vault-init openbao-init seaweedfs-init kafka-init ranger-init polaris-init openldap-init
+.PHONY: build up down clean vault-init openbao-init seaweedfs-init kafka-init ranger-init polaris-init openldap-init debezium-init
 
 build:
 	docker build -t $(AIRFLOW_IMAGE) -f infra/images/airflow.Dockerfile .
@@ -204,6 +208,48 @@ openldap-init:
 	  docker compose --project-directory . $(ENV_FILE) -f $(RANGER_COMPOSE) \
 	  exec -T openldap ldapmodify -Y EXTERNAL -H ldapi:/// -c || true
 	@echo "Done. Restart openldap or re-add group entries to populate memberOf back-references."
+
+# Register the Debezium PostgreSQL CDC connector against the home-lab source database.
+# Requires: make up debezium (Debezium Connect and Redpanda must both be healthy).
+# Requires: POSTGRES_HOST, POSTGRES_USERNAME, POSTGRES_PASSWORD, POSTGRES_DBNAME in .env.
+# PostgreSQL prerequisites (run once on the source DB):
+#   ALTER SYSTEM SET wal_level = 'logical'; -- then restart PostgreSQL
+#   CREATE PUBLICATION debezium_publication FOR ALL TABLES;
+#   GRANT REPLICATION ON DATABASE <db> TO <user>;  -- user needs REPLICATION privilege
+DEBEZIUM_URL ?= http://localhost:8083
+debezium-init:
+	@set -e; \
+	PG_HOST=$${POSTGRES_HOST:?Set POSTGRES_HOST in .env}; \
+	PG_PORT=$${POSTGRES_PORT:-5432}; \
+	PG_USER=$${POSTGRES_USERNAME:?Set POSTGRES_USERNAME in .env}; \
+	PG_PASS=$${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}; \
+	PG_DB=$${POSTGRES_DBNAME:?Set POSTGRES_DBNAME in .env}; \
+	echo "Registering Debezium PostgreSQL connector ($$PG_HOST:$$PG_PORT/$$PG_DB)..."; \
+	curl -sf -X POST "$(DEBEZIUM_URL)/connectors" \
+	  -H "Content-Type: application/json" \
+	  -d "{ \
+	    \"name\": \"pg-cdc-connector\", \
+	    \"config\": { \
+	      \"connector.class\": \"io.debezium.connector.postgresql.PostgresConnector\", \
+	      \"tasks.max\": \"1\", \
+	      \"database.hostname\": \"$$PG_HOST\", \
+	      \"database.port\": \"$$PG_PORT\", \
+	      \"database.user\": \"$$PG_USER\", \
+	      \"database.password\": \"$$PG_PASS\", \
+	      \"database.dbname\": \"$$PG_DB\", \
+	      \"topic.prefix\": \"cdc\", \
+	      \"plugin.name\": \"pgoutput\", \
+	      \"slot.name\": \"debezium_slot\", \
+	      \"publication.name\": \"debezium_publication\", \
+	      \"publication.autocreate.mode\": \"all_tables\", \
+	      \"snapshot.mode\": \"initial\", \
+	      \"key.converter\": \"org.apache.kafka.connect.json.JsonConverter\", \
+	      \"value.converter\": \"org.apache.kafka.connect.json.JsonConverter\", \
+	      \"key.converter.schemas.enable\": \"false\", \
+	      \"value.converter.schemas.enable\": \"false\" \
+	    } \
+	  }" | python3 -m json.tool; \
+	echo "Connector registered. Topics will appear as cdc.<schema>.<table>"
 
 # Create default Kafka topics.
 # Requires: make up kafka (Kafka must be running)

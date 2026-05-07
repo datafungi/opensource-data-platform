@@ -1,0 +1,39 @@
+services:
+  debezium:
+    image: quay.io/debezium/connect:3.5.0.Final
+    ports:
+      - "8083:8083"
+    environment:
+      # Kafka Connect worker — broker
+      BOOTSTRAP_SERVERS: redpanda:9092
+      # Internal Kafka Connect coordination topics
+      GROUP_ID: debezium-cluster-1
+      CONFIG_STORAGE_TOPIC: _connect_configs
+      OFFSET_STORAGE_TOPIC: _connect_offsets
+      STATUS_STORAGE_TOPIC: _connect_statuses
+      # Single Redpanda broker in dev — replication factor must be 1
+      CONNECT_CONFIG_STORAGE_REPLICATION_FACTOR: "1"
+      CONNECT_OFFSET_STORAGE_REPLICATION_FACTOR: "1"
+      CONNECT_STATUS_STORAGE_REPLICATION_FACTOR: "1"
+      # JSON converters without embedded schemas (simplest; swap for Avro + schema registry if needed)
+      KEY_CONVERTER: org.apache.kafka.connect.json.JsonConverter
+      VALUE_CONVERTER: org.apache.kafka.connect.json.JsonConverter
+      CONNECT_KEY_CONVERTER_SCHEMAS_ENABLE: "false"
+      CONNECT_VALUE_CONVERTER_SCHEMAS_ENABLE: "false"
+      HEAP_OPTS: "-Xms512M -Xmx1G"
+    depends_on:
+      redpanda:
+        condition: service_healthy
+    networks:
+      - data-platform-dev
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8083/connectors >/dev/null"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    restart: unless-stopped
+
+networks:
+  data-platform-dev:
+    external: true
