@@ -2,22 +2,40 @@ services:
   trino:
     image: trinodb/trino:480
     ports:
-      - "8085:8080"    # Trino UI and API (8085 externally to avoid collision with Airflow)
+      - "8085:8443"    # Trino UI and API over HTTPS
     volumes:
       - type: bind
-        source: infra/dev/compose/trino-config
+        source: ${PWD}/infra/dev/configs/trino
         target: /etc/trino
+      - type: bind
+        source: ${PWD}/infra/dev/configs/trino-security/certs
+        target: /etc/trino/certs
         read_only: true
     environment:
-      # Credentials passed to catalog property files via ${ENV:...} substitution
       SEAWEEDFS_ACCESS_KEY: ${SEAWEEDFS_ACCESS_KEY:-seaweedadmin}
       SEAWEEDFS_SECRET_KEY: ${SEAWEEDFS_SECRET_KEY:-seaweedadmin}
       CLICKHOUSE_USER: ${CLICKHOUSE_USER:-default}
       CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD:-}
+      POLARIS_CLIENT_CREDENTIAL: ${POLARIS_CLIENT_CREDENTIAL:-root:s3cr3t}
+      POLARIS_OAUTH2_SERVER_URI: ${POLARIS_OAUTH2_SERVER_URI:-http://polaris:8181/api/catalog/v1/oauth/tokens}
+      POLARIS_OAUTH2_SCOPE: ${POLARIS_OAUTH2_SCOPE:-PRINCIPAL_ROLE:ALL}
+      TRINO_SHARED_SECRET: ${TRINO_SHARED_SECRET:?Set TRINO_SHARED_SECRET in the project root .env}
+      LDAP_ADMIN_PASSWORD: ${LDAP_ADMIN_PASSWORD:-admin}
     networks:
       - data-platform-dev
+    depends_on:
+      openldap:
+        condition: service_healthy
+      ranger-admin:
+        condition: service_healthy
+      ranger-solr:
+        condition: service_healthy
+      polaris:
+        condition: service_healthy
+      polaris-bootstrap:
+        condition: service_completed_successfully
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/v1/info"]
+      test: ["CMD", "curl", "--insecure", "-f", "https://localhost:8443/v1/info"]
       interval: 15s
       timeout: 10s
       retries: 5

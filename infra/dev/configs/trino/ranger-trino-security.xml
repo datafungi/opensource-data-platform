@@ -1,0 +1,35 @@
+<?xml version="1.0"?>
+<?xml-stylesheet type="text/xsl" href="configuration.xsl"?>
+<configuration xmlns:xi="http://www.w3.org/2001/XInclude">
+  <property>
+    <name>ranger.plugin.trino.policy.rest.url</name>
+    <value>http://ranger-admin:6080</value>
+  </property>
+  <!-- Must match ranger.service.name in access-control.properties -->
+  <property>
+    <name>ranger.plugin.trino.service.name</name>
+    <value>trino_dev</value>
+  </property>
+  <property>
+    <name>ranger.plugin.trino.access.cluster.name</name>
+    <value>trino_dev</value>
+  </property>
+  <property>
+    <name>ranger.plugin.trino.use.rangerGroups</name>
+    <value>true</value>
+  </property>
+  <property>
+    <name>ranger.plugin.trino.use.only.rangerGroups</name>
+    <value>true</value>
+  </property>
+  <property>
+    <name>ranger.plugin.trino.super.users</name>
+    <value></value>
+  </property>
+  <!-- trino_admin group bypasses Ranger policy checks — allows admins to work
+       before any policies are defined in Ranger Admin. -->
+  <property>
+    <name>ranger.plugin.trino.super.groups</name>
+    <value>trino_admin</value>
+  </property>
+</configuration>
