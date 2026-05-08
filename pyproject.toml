@@ -20,6 +20,7 @@ dependencies = [
     "dbt-clickhouse>=1.9.8",
     "polars>=1.39.3",
     "psycopg2-binary>=2.9.11",
+    "pyspark>=4.1.1",
     "statsd>=4.0.1",
 ]
 

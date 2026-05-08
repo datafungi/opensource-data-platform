@@ -1,16 +1,40 @@
+# Custom Spark image — built automatically by:
+#   make up spark          (builds then starts)
+#   make up               (builds all services including spark)
+#
+# S3A credentials (AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY) are forwarded to
+# executor JVMs via OS environment inheritance: the worker process forks executor
+# JVMs, which inherit the container's env. The AWS SDK v2 default credential
+# chain (used by hadoop-aws 3.4.x) reads them automatically — no credential
+# provider class needs to be configured explicitly.
+#
+# The one secret NOT included here is the Polaris OAuth2 credential. Pass it
+# at job submission or in Airflow's SparkSubmitOperator conf:
+#   spark.sql.catalog.iceberg.credential = ${POLARIS_CLIENT_CREDENTIAL}
+#
+# Scale workers for more parallelism (pass extra args after the make target):
+#   make up spark -- --scale spark-worker=3
+
 services:
   spark-master:
-    image: bitnami/spark:4.1.1
+    build:
+      context: infra/images/spark
+      dockerfile: Dockerfile
+    image: oss-data-platform/spark:latest
+    # apache/spark uses explicit class invocation instead of bitnami's SPARK_MODE.
+    # --host binds the master to its Docker service name so workers can resolve it.
+    command:
+      - /opt/spark/bin/spark-class
+      - org.apache.spark.deploy.master.Master
+      - --host
+      - spark-master
     environment:
-      SPARK_MODE: master
-      SPARK_MASTER_HOST: spark-master
-      SPARK_RPC_AUTHENTICATION_ENABLED: "no"
-      SPARK_RPC_ENCRYPTION_ENABLED: "no"
-      SPARK_LOCAL_STORAGE_ENCRYPTION_ENABLED: "no"
-      SPARK_SSL_ENABLED: "no"
+      # S3A credentials — inherited by executor JVMs forked from the worker
+      AWS_ACCESS_KEY_ID: ${SEAWEEDFS_ACCESS_KEY:-seaweedadmin}
+      AWS_SECRET_ACCESS_KEY: ${SEAWEEDFS_SECRET_KEY:-seaweedadmin}
     ports:
-      - "${SPARK_MASTER_PORT:-7077}:7077"   # Spark cluster port
-      - "8090:8080"                          # Spark master web UI
+      - "${SPARK_MASTER_PORT:-7077}:7077"   # cluster submit port
+      - "8090:8080"                          # master web UI
     networks:
       - data-platform-dev
     healthcheck:
@@ -22,23 +46,36 @@ services:
     restart: unless-stopped
 
   spark-worker:
-    image: bitnami/spark:4.1.1
+    build:
+      context: infra/images/spark
+      dockerfile: Dockerfile
+    image: oss-data-platform/spark:latest
+    command:
+      - /opt/spark/bin/spark-class
+      - org.apache.spark.deploy.worker.Worker
+      - spark://spark-master:7077
+      - --memory
+      - "${SPARK_WORKER_MEMORY:-2g}"
+      - --cores
+      - "${SPARK_WORKER_CORES:-2}"
     environment:
-      SPARK_MODE: worker
-      SPARK_MASTER_URL: spark://spark-master:7077
-      SPARK_WORKER_MEMORY: 2G
-      SPARK_WORKER_CORES: "2"
-      SPARK_RPC_AUTHENTICATION_ENABLED: "no"
-      SPARK_RPC_ENCRYPTION_ENABLED: "no"
-      SPARK_LOCAL_STORAGE_ENCRYPTION_ENABLED: "no"
-      SPARK_SSL_ENABLED: "no"
+      # S3A credentials must be on the worker: executor JVMs are forked here
+      # and inherit these env vars, giving them access to SeaweedFS (s3a://).
+      AWS_ACCESS_KEY_ID: ${SEAWEEDFS_ACCESS_KEY:-seaweedadmin}
+      AWS_SECRET_ACCESS_KEY: ${SEAWEEDFS_SECRET_KEY:-seaweedadmin}
     ports:
-      - "8091:8081"   # Spark worker web UI
+      - "8091:8081"   # worker web UI
     networks:
       - data-platform-dev
     depends_on:
       spark-master:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8081"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
     restart: unless-stopped
 
 networks:

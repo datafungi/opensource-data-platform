@@ -2571,6 +2571,7 @@ dependencies = [
     { name = "dbt-clickhouse" },
     { name = "polars" },
     { name = "psycopg2-binary" },
+    { name = "pyspark" },
     { name = "statsd" },
 ]
 
@@ -2602,6 +2603,7 @@ requires-dist = [
     { name = "dbt-clickhouse", specifier = ">=1.9.8" },
     { name = "polars", specifier = ">=1.39.3" },
     { name = "psycopg2-binary", specifier = ">=2.9.11" },
+    { name = "pyspark", specifier = ">=4.1.1" },
     { name = "statsd", specifier = ">=4.0.1" },
 ]
 
